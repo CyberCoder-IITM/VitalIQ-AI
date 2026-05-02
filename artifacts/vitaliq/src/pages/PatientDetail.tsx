@@ -22,15 +22,14 @@ import MedicationTracker from "@/components/MedicationTracker";
 import RiskHistory from "@/components/RiskHistory";
 import HandoffGenerator from "@/components/HandoffGenerator";
 import { useGetNews2Score } from "@workspace/api-client-react";
-import { useClinicalStore as useStore } from "@/store/clinicalStore";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "diagnosis", label: "🧠 AI Diagnosis" },
-  { id: "soap", label: "📝 SOAP Note" },
-  { id: "drugs", label: "💊 Drug Safety" },
-  { id: "labs", label: "🔬 Lab Trends" },
-  { id: "forecast", label: "🔮 Forecast" },
-  { id: "timeline", label: "📅 Timeline" },
+  { id: "soap",      label: "📝 SOAP Note" },
+  { id: "drugs",     label: "💊 Drug Safety" },
+  { id: "labs",      label: "🔬 Lab Trends" },
+  { id: "forecast",  label: "🔮 Forecast" },
+  { id: "timeline",  label: "📅 Timeline" },
 ];
 
 const SUGGESTIONS = [
@@ -88,7 +87,7 @@ function ClinicalQueryBar({ patientId }: { patientId: string }) {
   return (
     <div className="border-t border-border bg-card shrink-0">
       {history.length > 0 && (
-        <div className="px-4 pt-3 max-h-40 overflow-y-auto space-y-2">
+        <div className="px-3 pt-2 max-h-36 overflow-y-auto space-y-1.5">
           {history.slice(-2).map((h, i) => (
             <div key={i} className="space-y-1">
               <div className="flex justify-end">
@@ -113,8 +112,8 @@ function ClinicalQueryBar({ patientId }: { patientId: string }) {
           ))}
         </div>
       )}
-      <div className="px-4 pb-2 pt-2">
-        <div className="flex gap-1 mb-2 overflow-x-auto scrollbar-none">
+      <div className="px-3 pb-2 pt-1.5">
+        <div className="flex gap-1 mb-1.5 overflow-x-auto scrollbar-none">
           {SUGGESTIONS.map((s) => (
             <button key={s} onClick={() => submit(s)}
               className="text-[10px] whitespace-nowrap bg-muted/30 border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 px-2 py-0.5 rounded-full transition-colors shrink-0">
@@ -129,14 +128,14 @@ function ClinicalQueryBar({ patientId }: { patientId: string }) {
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit(question)}
             placeholder="💬 Ask anything about this patient... (press / to focus)"
-            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+            className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           />
           <button
             onClick={() => submit(question)}
             disabled={isPending || !question.trim()}
-            className="text-xs px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-40 transition-colors shrink-0"
+            className="text-xs px-3 py-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-40 transition-colors shrink-0"
           >
-            {isPending ? "..." : "Ask"}
+            {isPending ? "…" : "Ask"}
           </button>
         </div>
       </div>
@@ -149,7 +148,13 @@ export default function PatientDetail() {
   const [, navigate] = useLocation();
   const patientId = params?.id ?? "";
 
-  const { activeTab, setActiveTab, disclaimerDismissed, dismissDisclaimer, alertsDrawerOpen, triageDrawerOpen, handoffPatientId, setHandoffPatientId } = useClinicalStore();
+  const {
+    activeTab, setActiveTab,
+    disclaimerDismissed, dismissDisclaimer,
+    alertsDrawerOpen, triageDrawerOpen,
+    handoffPatientId, setHandoffPatientId,
+  } = useClinicalStore();
+
   const { data: patient, isLoading } = useGetPatient(patientId);
   const { data: news2 } = useGetNews2Score(patientId, { query: { refetchInterval: 4000, enabled: !!patientId } });
 
@@ -157,7 +162,7 @@ export default function PatientDetail() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Loading patient...</div>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Loading patient…</div>
       </div>
     );
   }
@@ -165,7 +170,7 @@ export default function PatientDetail() {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {!disclaimerDismissed && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between shrink-0">
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 flex items-center justify-between shrink-0">
           <span className="text-amber-400 text-xs font-medium">⚠ DEMO — Synthetic data only. Not for clinical use.</span>
           <button onClick={dismissDisclaimer} className="text-amber-400/60 hover:text-amber-400 text-xs">✕</button>
         </div>
@@ -174,38 +179,46 @@ export default function PatientDetail() {
       <PatientHeader patientId={patientId} onBack={() => navigate("/")} />
 
       <div className="flex-1 overflow-y-auto">
-        {/* 3-column grid */}
-        <div className="grid gap-3 p-3 items-start" style={{ gridTemplateColumns: "272px 1fr 272px" }}>
-          {/* Left column */}
-          <div className="space-y-3 min-w-0">
+
+        {/* ── Row 1: 3-column balanced monitor strip ── */}
+        <div
+          className="grid gap-2 p-2 items-start"
+          style={{ gridTemplateColumns: "minmax(0,228px) minmax(0,1fr) minmax(0,252px)" }}
+        >
+          {/* Left — scores & drug safety */}
+          <div className="flex flex-col gap-2 min-w-0">
             <NEWS2Gauge patientId={patientId} />
             <ICUPredictor patientId={patientId} />
             <DrugChecker patientId={patientId} patient={patient} compact />
-            <MedicationTracker patientId={patientId} />
-            <SepsisTracker patientId={patientId} />
           </div>
 
-          {/* Center column */}
-          <div className="space-y-3 min-w-0">
+          {/* Center — vitals + compact labs */}
+          <div className="flex flex-col gap-2 min-w-0">
             <VitalsMonitor patientId={patientId} />
             <LabResults patientId={patientId} compact />
           </div>
 
-          {/* Right column */}
-          <div className="space-y-3 min-w-0">
+          {/* Right — alerts + triage */}
+          <div className="flex flex-col gap-2 min-w-0">
             <AlertTimeline patientId={patientId} />
             <TriageAgent patientId={patientId} compact />
           </div>
         </div>
 
-        {/* Bottom tabs section */}
-        <div className="border-t border-border mx-3 mb-0 rounded-t-lg overflow-hidden bg-card">
-          <div className="flex border-b border-border overflow-x-auto">
+        {/* ── Row 2: Meds + Sepsis side-by-side ── */}
+        <div className="grid grid-cols-2 gap-2 px-2 pb-2 items-start">
+          <MedicationTracker patientId={patientId} />
+          <SepsisTracker patientId={patientId} />
+        </div>
+
+        {/* ── Row 3: Tabbed deep-dive panel ── */}
+        <div className="border-t border-border mx-2 mb-0 rounded-t-lg overflow-hidden bg-card">
+          <div className="flex border-b border-border overflow-x-auto scrollbar-none">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? "border-primary text-primary bg-primary/5"
                     : "border-transparent text-muted-foreground hover:text-foreground"
@@ -215,18 +228,19 @@ export default function PatientDetail() {
               </button>
             ))}
           </div>
-          <div className="p-4 min-h-96">
+          <div className="p-3 min-h-80">
             {activeTab === "diagnosis" && <DiagnosisPanel patientId={patientId} />}
-            {activeTab === "soap" && <SOAPNoteWriter patientId={patientId} patient={patient} />}
-            {activeTab === "drugs" && <DrugChecker patientId={patientId} patient={patient} />}
-            {activeTab === "labs" && <LabResults patientId={patientId} />}
-            {activeTab === "forecast" && <DeteriorationForecast patientId={patientId} />}
-            {activeTab === "timeline" && <ClinicalTimeline patientId={patientId} />}
+            {activeTab === "soap"      && <SOAPNoteWriter patientId={patientId} patient={patient} />}
+            {activeTab === "drugs"     && <DrugChecker patientId={patientId} patient={patient} />}
+            {activeTab === "labs"      && <LabResults patientId={patientId} />}
+            {activeTab === "forecast"  && <DeteriorationForecast patientId={patientId} />}
+            {activeTab === "timeline"  && <ClinicalTimeline patientId={patientId} />}
           </div>
         </div>
 
-        {/* Risk History — always visible */}
+        {/* ── Row 4: Risk history sparkline ── */}
         <RiskHistory patientId={patientId} />
+
       </div>
 
       <ClinicalQueryBar patientId={patientId} />

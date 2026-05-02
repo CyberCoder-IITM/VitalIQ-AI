@@ -20,15 +20,14 @@ export default function PatientBoard() {
   const { data: patients = [], isLoading: loadingPatients } = useListPatients();
   const { data: allVitals } = useGetAllCurrentVitals({ query: { refetchInterval: 3000 } });
   const { data: alertCount } = useGetUnacknowledgedCount({ query: { refetchInterval: 5000 } });
-  const { data: triage } = useGetLatestTriage({ query: { refetchInterval: 15000 } });
 
   const news2High = (patients as any[]).filter((_p: any) => (_p as any).__news2 >= 7).length;
-  const news2Med = (patients as any[]).filter((_p: any) => (_p as any).__news2 >= 5 && (_p as any).__news2 < 7).length;
+  const news2Med  = (patients as any[]).filter((_p: any) => (_p as any).__news2 >= 5 && (_p as any).__news2 < 7).length;
 
   const sortedPatients = useMemo(() => {
     if (!patients || patients.length === 0) return patients;
     const arr = [...(patients as any[])];
-    if (sortMode === "name") return arr.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+    if (sortMode === "name")    return arr.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
     if (sortMode === "arrival") return arr.sort((a, b) => new Date(a.arrival_time ?? 0).getTime() - new Date(b.arrival_time ?? 0).getTime());
     return arr;
   }, [patients, sortMode]);
@@ -45,11 +44,27 @@ export default function PatientBoard() {
       )}
       <Header />
 
-      <div className="flex-1 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-foreground font-semibold text-sm">ACTIVE PATIENTS</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-xs">Sort:</span>
+      <div className="flex-1 p-3">
+        {/* Toolbar */}
+        <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="text-foreground font-semibold text-sm tracking-wide">ACTIVE PATIENTS</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            {news2High > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
+                NEWS2 ≥7: {news2High}
+              </span>
+            )}
+            {news2Med > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">
+                NEWS2 5–6: {news2Med}
+              </span>
+            )}
+            {(alertCount?.count ?? 0) > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-medium">
+                {alertCount?.count} unacked
+              </span>
+            )}
+            <span className="text-muted-foreground text-[10px]">Live · every 3s</span>
             <select
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as any)}
@@ -62,34 +77,15 @@ export default function PatientBoard() {
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          {news2High > 0 && (
-            <span className="text-[11px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
-              NEWS2 ≥7: {news2High} patients
-            </span>
-          )}
-          {news2Med > 0 && (
-            <span className="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">
-              NEWS2 5–6: {news2Med} patients
-            </span>
-          )}
-          {(alertCount?.count ?? 0) > 0 && (
-            <span className="text-[11px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-medium">
-              {alertCount?.count} unacked alerts
-            </span>
-          )}
-          <span className="text-muted-foreground text-xs ml-auto">Live vitals · Refreshing every 3s</span>
-        </div>
-
+        {/* Responsive card grid: 1 col → 2 → 3 → 4 */}
         {loadingPatients ? (
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-52 rounded-lg bg-card border border-border animate-pulse" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
             {sortedPatients.map((patient: any) => {
               const vitals = allVitals?.[patient.id as keyof typeof allVitals];
               return (
