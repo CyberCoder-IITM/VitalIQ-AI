@@ -16,11 +16,24 @@ export interface StreamVitals {
 
 export type TabId = 'diagnosis' | 'soap' | 'drugs' | 'labs' | 'forecast' | 'timeline';
 export type SortMode = 'news2' | 'icu' | 'arrival' | 'name';
+export type ColorMode = 'dark' | 'midnight' | 'light';
 
 export interface QueryEntry {
   question: string;
   answer: string;
   timestamp: string;
+}
+
+function loadColorMode(): ColorMode {
+  try { return (localStorage.getItem('vitaliq-color-mode') as ColorMode) || 'dark'; }
+  catch { return 'dark'; }
+}
+
+function applyColorMode(mode: ColorMode) {
+  const el = document.documentElement;
+  el.classList.remove('theme-dark', 'theme-midnight', 'theme-light');
+  el.classList.add(`theme-${mode}`);
+  try { localStorage.setItem('vitaliq-color-mode', mode); } catch {}
 }
 
 interface ClinicalStore {
@@ -62,7 +75,13 @@ interface ClinicalStore {
 
   sortMode: SortMode;
   setSortMode: (mode: SortMode) => void;
+
+  colorMode: ColorMode;
+  setColorMode: (mode: ColorMode) => void;
 }
+
+const initialColorMode = loadColorMode();
+applyColorMode(initialColorMode);
 
 export const useClinicalStore = create<ClinicalStore>((set) => ({
   selectedPatientId: null,
@@ -113,4 +132,10 @@ export const useClinicalStore = create<ClinicalStore>((set) => ({
 
   sortMode: 'news2',
   setSortMode: (mode) => set({ sortMode: mode }),
+
+  colorMode: initialColorMode,
+  setColorMode: (mode) => {
+    applyColorMode(mode);
+    set({ colorMode: mode });
+  },
 }));

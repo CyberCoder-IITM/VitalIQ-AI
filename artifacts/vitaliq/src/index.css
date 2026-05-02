@@ -55,7 +55,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root, .dark {
+/* ─── Theme: Dark (default) ─────────────────────────────────── */
+:root, .theme-dark {
   --background: 230 20% 7%;
   --foreground: 232 43% 93%;
   --border: 210 36% 18%;
@@ -82,17 +83,78 @@
   --chart-3: 199 89% 48%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 70% 50%;
-
   --radius: 0.5rem;
 }
 
+/* ─── Theme: Midnight (black + green terminal) ───────────────── */
+.theme-midnight {
+  --background: 0 0% 4%;
+  --foreground: 120 60% 88%;
+  --border: 120 25% 16%;
+  --card: 120 12% 8%;
+  --card-foreground: 120 60% 88%;
+  --card-border: 120 25% 16%;
+  --popover: 120 12% 8%;
+  --popover-foreground: 120 60% 88%;
+  --popover-border: 120 25% 16%;
+  --primary: 120 55% 48%;
+  --primary-foreground: 0 0% 5%;
+  --secondary: 120 20% 14%;
+  --secondary-foreground: 120 60% 88%;
+  --muted: 120 20% 14%;
+  --muted-foreground: 120 18% 52%;
+  --accent: 120 20% 14%;
+  --accent-foreground: 120 60% 88%;
+  --destructive: 4 90% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 120 20% 14%;
+  --ring: 120 55% 48%;
+  --chart-1: 122 55% 50%;
+  --chart-2: 37 100% 50%;
+  --chart-3: 180 70% 44%;
+  --chart-4: 280 60% 58%;
+  --chart-5: 340 70% 50%;
+  --radius: 0.5rem;
+}
+
+/* ─── Theme: Light (clean clinical day mode) ─────────────────── */
+.theme-light {
+  --background: 220 30% 96%;
+  --foreground: 220 40% 14%;
+  --border: 220 18% 84%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 40% 14%;
+  --card-border: 220 18% 84%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 40% 14%;
+  --popover-border: 220 18% 84%;
+  --primary: 210 90% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 18% 90%;
+  --secondary-foreground: 220 40% 20%;
+  --muted: 220 18% 92%;
+  --muted-foreground: 220 16% 46%;
+  --accent: 220 18% 90%;
+  --accent-foreground: 220 40% 14%;
+  --destructive: 4 85% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 220 18% 90%;
+  --ring: 210 90% 42%;
+  --chart-1: 122 45% 38%;
+  --chart-2: 30 90% 44%;
+  --chart-3: 199 80% 38%;
+  --chart-4: 280 60% 50%;
+  --chart-5: 340 70% 48%;
+  --radius: 0.5rem;
+}
+
+/* Light theme overrides for hardcoded dark-only utility classes */
+.theme-light .text-cyan-300   { color: hsl(199 80% 32%) !important; }
+.theme-light .border-border\/50 { border-color: hsl(var(--border) / 0.5); }
+
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply font-sans antialiased bg-background text-foreground; }
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
