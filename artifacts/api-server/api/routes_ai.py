@@ -111,24 +111,25 @@ def _answer_news2(patient, vitals, news2) -> tuple[str, str]:
     if not news2 or not vitals:
         return (f"NEWS2 data is not yet available for {patient.name}.",
                 "NEWS2 requires complete vital signs.")
+    cs = news2.component_scores
     contributors = []
-    if news2.resp_rate_score > 0:
-        contributors.append(f"RR {vitals.respiratory_rate:.0f}/min (+{news2.resp_rate_score})")
-    if news2.spo2_score > 0:
-        contributors.append(f"SpO₂ {vitals.spo2:.0f}% (+{news2.spo2_score})")
-    if news2.bp_score > 0:
-        contributors.append(f"BP {vitals.systolic_bp:.0f} (+{news2.bp_score})")
-    if news2.hr_score > 0:
-        contributors.append(f"HR {vitals.heart_rate:.0f} (+{news2.hr_score})")
-    if news2.temp_score > 0:
-        contributors.append(f"Temp {vitals.temperature:.1f}°C (+{news2.temp_score})")
-    if news2.consciousness_score > 0:
-        contributors.append(f"GCS {vitals.gcs} (+{news2.consciousness_score})")
+    if cs.respiratory_rate > 0:
+        contributors.append(f"RR {vitals.respiratory_rate:.0f}/min (+{cs.respiratory_rate})")
+    if cs.spo2 > 0:
+        contributors.append(f"SpO₂ {vitals.spo2:.0f}% (+{cs.spo2})")
+    if cs.systolic_bp > 0:
+        contributors.append(f"BP {vitals.systolic_bp:.0f} (+{cs.systolic_bp})")
+    if cs.heart_rate > 0:
+        contributors.append(f"HR {vitals.heart_rate:.0f} (+{cs.heart_rate})")
+    if cs.temperature > 0:
+        contributors.append(f"Temp {vitals.temperature:.1f}°C (+{cs.temperature})")
+    if cs.consciousness > 0:
+        contributors.append(f"GCS {vitals.gcs} (+{cs.consciousness})")
     contrib_str = ", ".join(contributors) or "all parameters within normal range"
     answer = (
         f"{patient.name}'s NEWS2 score is **{news2.score}** ({news2.risk_level.value} risk). "
         f"Scoring breakdown: {contrib_str}. "
-        f"{news2.recommendation}"
+        f"{news2.recommended_action}"
     )
     thresholds = "NEWS2 0-4: low risk. 5-6: medium (urgent review). 7+: high (emergency response). Any single score ≥3: continuous monitoring."
     return answer, f"Royal College of Physicians NEWS2 scoring system. {thresholds}"

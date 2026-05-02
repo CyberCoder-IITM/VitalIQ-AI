@@ -115,7 +115,7 @@ export default function PatientHeader({ patientId, onBack }: Props) {
               {a}
             </span>
           ))}
-          {(patient?.conditions ?? []).map((c: string, i: number) => (
+          {((patient as any)?.active_conditions ?? []).map((c: string, i: number) => (
             <span key={i} className="text-[10px] bg-muted/30 text-muted-foreground border border-border px-2 py-0.5 rounded-full">
               {c}
             </span>

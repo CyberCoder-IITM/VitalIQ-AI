@@ -15,6 +15,9 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
+// Allow callers to omit queryKey — generated hooks supply it automatically
+type PartialQueryOptions<T, E = ErrorType<unknown>, D = T> = Omit<UseQueryOptions<T, E, D>, 'queryKey'> & { queryKey?: QueryKey };
+
 
 import type {
   AlertCount,
@@ -69,7 +72,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -104,7 +107,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -144,7 +147,7 @@ export const getListPatientsQueryOptions = <
   TData = Awaited<ReturnType<typeof listPatients>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof listPatients>>,
     TError,
     TData
@@ -179,7 +182,7 @@ export function useListPatients<
   TData = Awaited<ReturnType<typeof listPatients>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof listPatients>>,
     TError,
     TData
@@ -219,7 +222,7 @@ export const getGetPatientQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getPatient>>,
       TError,
       TData
@@ -258,7 +261,7 @@ export function useGetPatient<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getPatient>>,
       TError,
       TData
@@ -299,7 +302,7 @@ export const getGetCurrentVitalsQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getCurrentVitals>>,
       TError,
       TData
@@ -340,7 +343,7 @@ export function useGetCurrentVitals<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getCurrentVitals>>,
       TError,
       TData
@@ -381,7 +384,7 @@ export const getGetVitalsHistoryQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getVitalsHistory>>,
       TError,
       TData
@@ -422,7 +425,7 @@ export function useGetVitalsHistory<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getVitalsHistory>>,
       TError,
       TData
@@ -463,7 +466,7 @@ export const getGetNews2ScoreQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getNews2Score>>,
       TError,
       TData
@@ -503,7 +506,7 @@ export function useGetNews2Score<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getNews2Score>>,
       TError,
       TData
@@ -544,7 +547,7 @@ export const getGetAllCurrentVitalsQueryOptions = <
   TData = Awaited<ReturnType<typeof getAllCurrentVitals>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getAllCurrentVitals>>,
     TError,
     TData
@@ -579,7 +582,7 @@ export function useGetAllCurrentVitals<
   TData = Awaited<ReturnType<typeof getAllCurrentVitals>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getAllCurrentVitals>>,
     TError,
     TData
@@ -619,7 +622,7 @@ export const getGetLabResultsQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getLabResults>>,
       TError,
       TData
@@ -659,7 +662,7 @@ export function useGetLabResults<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getLabResults>>,
       TError,
       TData
@@ -859,7 +862,7 @@ export const getGetIcuRiskQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getIcuRisk>>,
       TError,
       TData
@@ -898,7 +901,7 @@ export function useGetIcuRisk<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getIcuRisk>>,
       TError,
       TData
@@ -936,7 +939,7 @@ export const getGetLatestTriageQueryOptions = <
   TData = Awaited<ReturnType<typeof getLatestTriage>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getLatestTriage>>,
     TError,
     TData
@@ -967,7 +970,7 @@ export function useGetLatestTriage<
   TData = Awaited<ReturnType<typeof getLatestTriage>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getLatestTriage>>,
     TError,
     TData
@@ -1004,7 +1007,7 @@ export const getGetTriageHistoryQueryOptions = <
   TData = Awaited<ReturnType<typeof getTriageHistory>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getTriageHistory>>,
     TError,
     TData
@@ -1035,7 +1038,7 @@ export function useGetTriageHistory<
   TData = Awaited<ReturnType<typeof getTriageHistory>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getTriageHistory>>,
     TError,
     TData
@@ -1072,7 +1075,7 @@ export const getGetTriagePriorityQueryOptions = <
   TData = Awaited<ReturnType<typeof getTriagePriority>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getTriagePriority>>,
     TError,
     TData
@@ -1103,7 +1106,7 @@ export function useGetTriagePriority<
   TData = Awaited<ReturnType<typeof getTriagePriority>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getTriagePriority>>,
     TError,
     TData
@@ -1223,7 +1226,7 @@ export const getGetDrugInteractionsQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getDrugInteractions>>,
       TError,
       TData
@@ -1264,7 +1267,7 @@ export function useGetDrugInteractions<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getDrugInteractions>>,
       TError,
       TData
@@ -1382,7 +1385,7 @@ export const getGetDrugDatabaseQueryOptions = <
   TData = Awaited<ReturnType<typeof getDrugDatabase>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getDrugDatabase>>,
     TError,
     TData
@@ -1413,7 +1416,7 @@ export function useGetDrugDatabase<
   TData = Awaited<ReturnType<typeof getDrugDatabase>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getDrugDatabase>>,
     TError,
     TData
@@ -1450,7 +1453,7 @@ export const getGetAllAlertsQueryOptions = <
   TData = Awaited<ReturnType<typeof getAllAlerts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getAllAlerts>>,
     TError,
     TData
@@ -1481,7 +1484,7 @@ export function useGetAllAlerts<
   TData = Awaited<ReturnType<typeof getAllAlerts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getAllAlerts>>,
     TError,
     TData
@@ -1521,7 +1524,7 @@ export const getGetPatientAlertsQueryOptions = <
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getPatientAlerts>>,
       TError,
       TData
@@ -1562,7 +1565,7 @@ export function useGetPatientAlerts<
 >(
   patientId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: PartialQueryOptions<
       Awaited<ReturnType<typeof getPatientAlerts>>,
       TError,
       TData
@@ -1678,7 +1681,7 @@ export const getGetUnacknowledgedCountQueryOptions = <
   TData = Awaited<ReturnType<typeof getUnacknowledgedCount>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getUnacknowledgedCount>>,
     TError,
     TData
@@ -1710,7 +1713,7 @@ export function useGetUnacknowledgedCount<
   TData = Awaited<ReturnType<typeof getUnacknowledgedCount>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: PartialQueryOptions<
     Awaited<ReturnType<typeof getUnacknowledgedCount>>,
     TError,
     TData

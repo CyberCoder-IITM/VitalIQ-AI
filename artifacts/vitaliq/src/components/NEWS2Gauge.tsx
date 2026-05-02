@@ -57,7 +57,7 @@ export default function NEWS2Gauge({ patientId }: Props) {
   if (isLoading) return <div className="h-48 bg-card border border-border rounded-lg animate-pulse" />;
   if (!news2) return null;
 
-  const total = Object.values(news2.component_scores as Record<string, number>).reduce((a, b) => a + b, 0);
+  const total = Object.values(news2.component_scores as unknown as Record<string, number>).reduce((a, b) => a + b, 0);
   const borderClass = total >= 7 ? "border-red-500/50" : total >= 5 ? "border-amber-500/40" : "border-border";
 
   const vitalsDisplay: Record<string, string> = {
@@ -86,7 +86,7 @@ export default function NEWS2Gauge({ patientId }: Props) {
 
       <table className="w-full text-[10px] px-2">
         <tbody>
-          {Object.entries(news2.component_scores as Record<string, number>).map(([key, s]) => {
+          {Object.entries(news2.component_scores as unknown as Record<string, number>).map(([key, s]) => {
             const score = Number(s);
             const scoreColor = score >= 3 ? "text-red-400 font-black" : score >= 2 ? "text-amber-400 font-bold" : score >= 1 ? "text-amber-300 font-semibold" : "text-muted-foreground";
             return (
