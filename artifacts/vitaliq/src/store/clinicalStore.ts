@@ -14,7 +14,7 @@ export interface StreamVitals {
   etco2?: number | null;
 }
 
-export type TabId = 'diagnosis' | 'soap' | 'drugs' | 'labs';
+export type TabId = 'diagnosis' | 'soap' | 'drugs' | 'labs' | 'forecast' | 'timeline';
 export type SortMode = 'news2' | 'icu' | 'arrival' | 'name';
 
 export interface QueryEntry {
@@ -46,6 +46,15 @@ interface ClinicalStore {
 
   keyboardShortcutsOpen: boolean;
   setKeyboardShortcutsOpen: (open: boolean) => void;
+
+  commandCenterOpen: boolean;
+  setCommandCenterOpen: (open: boolean) => void;
+
+  presentationModeOpen: boolean;
+  setPresentationModeOpen: (open: boolean) => void;
+
+  handoffPatientId: string | null;
+  setHandoffPatientId: (id: string | null) => void;
 
   queryHistory: Record<string, QueryEntry[]>;
   addQueryResponse: (patientId: string, question: string, answer: string) => void;
@@ -79,6 +88,15 @@ export const useClinicalStore = create<ClinicalStore>((set) => ({
 
   keyboardShortcutsOpen: false,
   setKeyboardShortcutsOpen: (open) => set({ keyboardShortcutsOpen: open }),
+
+  commandCenterOpen: false,
+  setCommandCenterOpen: (open) => set({ commandCenterOpen: open }),
+
+  presentationModeOpen: false,
+  setPresentationModeOpen: (open) => set({ presentationModeOpen: open }),
+
+  handoffPatientId: null,
+  setHandoffPatientId: (id) => set({ handoffPatientId: id }),
 
   queryHistory: {},
   addQueryResponse: (patientId, question, answer) =>

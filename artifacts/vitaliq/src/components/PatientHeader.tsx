@@ -1,21 +1,16 @@
 import { useEffect, useState } from "react";
 import { useGetPatient } from "@workspace/api-client-react";
+import { useClinicalStore } from "@/store/clinicalStore";
 
 interface Props { patientId: string; onBack: () => void; }
 
 const ACUITY_BORDER: Record<number, string> = {
-  1: "border-red-500",
-  2: "border-orange-500",
-  3: "border-amber-400",
-  4: "border-green-500",
-  5: "border-blue-400",
+  1: "border-red-500", 2: "border-orange-500", 3: "border-amber-400",
+  4: "border-green-500", 5: "border-blue-400",
 };
 const ACUITY_BG: Record<number, string> = {
-  1: "bg-red-500 text-white",
-  2: "bg-orange-500 text-white",
-  3: "bg-amber-400 text-black",
-  4: "bg-green-500 text-white",
-  5: "bg-blue-400 text-white",
+  1: "bg-red-500 text-white", 2: "bg-orange-500 text-white", 3: "bg-amber-400 text-black",
+  4: "bg-green-500 text-white", 5: "bg-blue-400 text-white",
 };
 
 function useTimeInED(arrivalTime?: string) {
@@ -37,11 +32,11 @@ function useTimeInED(arrivalTime?: string) {
 
 export default function PatientHeader({ patientId, onBack }: Props) {
   const { data: patient } = useGetPatient(patientId);
+  const { setHandoffPatientId } = useClinicalStore();
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const timeInED = useTimeInED(patient?.arrival_time);
 
   const borderColor = ACUITY_BORDER[patient?.acuity ?? 3] ?? "border-border";
-  const elapsed = timeInED;
   const edHours = patient?.arrival_time
     ? Math.floor((Date.now() - new Date(patient.arrival_time).getTime()) / 3600000)
     : 0;
@@ -72,8 +67,8 @@ export default function PatientHeader({ patientId, onBack }: Props) {
         <div className="flex items-center gap-2 text-xs min-w-0">
           <span className="text-muted-foreground">{patient?.chief_complaint}</span>
           <span className="text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">{patient?.bed}</span>
-          {elapsed && (
-            <span className={`text-[10px] ${arrivalColor}`}>⏱ {elapsed}</span>
+          {timeInED && (
+            <span className={`text-[10px] ${arrivalColor}`}>⏱ {timeInED}</span>
           )}
         </div>
 
@@ -97,6 +92,14 @@ export default function PatientHeader({ patientId, onBack }: Props) {
           <span className="text-muted-foreground text-xs flex items-center gap-1">
             🩺 <span>{patient?.attending}</span>
           </span>
+
+          <button
+            onClick={() => setHandoffPatientId(patientId)}
+            className="text-[10px] text-teal-400 border border-teal-400/30 bg-teal-400/10 px-1.5 py-0.5 rounded hover:bg-teal-400/20 transition-colors"
+            title="Generate SBAR Handoff"
+          >
+            📋 Handoff
+          </button>
 
           {(patient?.allergies?.length ?? 0) > 0 && (
             <button

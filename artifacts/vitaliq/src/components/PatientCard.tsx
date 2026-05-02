@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useGetNews2Score, useGetIcuRisk, useGetPatientAlerts, useGetDrugInteractions } from "@workspace/api-client-react";
+import { DeteriorationMini } from "@/components/DeteriorationForecast";
 
 interface Props { patient: any; vitals: any; onClick: () => void; }
 
@@ -38,7 +39,9 @@ export default function PatientCard({ patient, vitals, onClick }: Props) {
 
   const scores = news2History.current;
   const trend = scores.length >= 4
-    ? scores[scores.length - 1] > scores[0] + 1.5 ? "↑" : scores[scores.length - 1] < scores[0] - 1.5 ? "↓" : "→"
+    ? scores[scores.length - 1] > scores[0] + 1.5 ? "↑"
+    : scores[scores.length - 1] < scores[0] - 1.5 ? "↓"
+    : "→"
     : "→";
   const trendColor = trend === "↑" ? "text-red-400" : trend === "↓" ? "text-green-400" : "text-muted-foreground/40";
   const trendTitle = trend === "↑" ? "DETERIORATING" : trend === "↓" ? "IMPROVING" : "STABLE";
@@ -120,6 +123,9 @@ export default function PatientCard({ patient, vitals, onClick }: Props) {
           <span className={`text-[10px] font-bold ${icuColor}`}>{icuPct}%</span>
         </div>
       </div>
+
+      {/* Deterioration mini bar */}
+      <DeteriorationMini patientId={patient.id} />
     </div>
   );
 }

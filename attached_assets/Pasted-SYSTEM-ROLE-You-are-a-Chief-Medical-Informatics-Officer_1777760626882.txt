@@ -1,0 +1,1059 @@
+SYSTEM ROLE: You are a Chief Medical Informatics Officer 
+and Principal Engineer who has deployed clinical decision 
+support systems at Mayo Clinic, Johns Hopkins, and 
+Massachusetts General Hospital. VitalIQ Phases 1 and 2 
+are complete and running perfectly — 8 live patients, 
+real-time vitals, NEWS2 scoring, ICU prediction, alerts, 
+triage agent all working.
+
+Phase 3 transforms VitalIQ from an impressive dashboard 
+into an award-winning, portfolio-defining, 
+interview-dominating clinical AI platform. These are the 
+features that separate $50K consulting projects from 
+$50M enterprise products.
+
+Zero placeholders. Zero TODOs. Complete working code only.
+Confirm every file with ✓. Do not rebuild what exists.
+
+═══════════════════════════════════════════════════════════
+WHAT EXISTS — DO NOT TOUCH
+═══════════════════════════════════════════════════════════
+
+✓ PatientBoard — 8 patients, NEWS2 sort, alert strips
+✓ PatientCard — vitals, NEWS2, ICU%, trend arrows, timers
+✓ PatientDetail — 3 column layout with all tabs
+✓ VitalsMonitor — 6 waveform charts, SSE updates
+✓ NEWSGauge — semicircle, component breakdown
+✓ ICUPredictor — sklearn, gradient bar, sparkline
+✓ DiagnosisPanel — Gemini DDx, disposition banner
+✓ SOAPNoteWriter — AI generation, editable sections
+✓ DrugChecker — interactions, new drug checker
+✓ LabResults — all panels, critical flagging
+✓ TriageAgent — drawer, priority ranking, focus patient
+✓ AlertTimeline — drawer, SSE, acknowledge
+✓ ClinicalQuery — chat bar, suggestion chips
+✓ Keyboard shortcuts — B,1-8,A,T,D,N,L,/,Escape
+✓ Demo mode disclaimer banner
+
+═══════════════════════════════════════════════════════════
+FEATURE 1 — PREDICTIVE DETERIORATION FORECASTER
+═══════════════════════════════════════════════════════════
+
+This is the single most valuable clinical AI feature.
+"We predict deterioration 6 minutes before it happens."
+This is what Philips EarlyVue and Epic Deterioration 
+Index charge hospitals $2M/year for.
+
+Create backend/ai/deterioration_forecaster.py:
+
+  Class DeteriorationForecaster:
+    
+    Per patient, maintains:
+      vitals_history: last 20 readings (60 seconds)
+      news2_history: last 20 NEWS2 scores
+      forecast_cache: last computed forecast
+    
+    Method: forecast_patient(
+      patient_id: str,
+      vitals_history: list[VitalSigns],
+      news2_history: list[int]
+    ) -> DeteriorationForecast
+    
+    Algorithm — implement from scratch:
+    
+      STEP 1 — Trend Extraction per vital:
+        For each of 6 vitals (HR, SBP, RR, SpO2, Temp, GCS):
+          Fit linear regression on last 10 readings
+          slope = (y[-1] - y[0]) / len(y)
+          Extract: current_value, slope, acceleration
+                   (second derivative of slope)
+      
+      STEP 2 — NEWS2 Trajectory:
+        news2_slope = linear regression on news2_history
+        news2_acceleration = second derivative
+        predicted_news2_5min = current + (slope × 10)
+                               + (0.5 × acceleration × 100)
+        Clamp: 0 to 20
+      
+      STEP 3 — Specific Deterioration Pattern Detection:
+        
+        SEPSIS_PATTERN: 
+          HR > 100 AND RR > 22 AND Temp > 38.3 OR < 36
+          AND trending worse on all three
+          → sepsis_probability: float
+        
+        RESPIRATORY_FAILURE_PATTERN:
+          SpO2 < 94 AND RR > 25 AND trending worse
+          → resp_failure_probability: float
+        
+        HEMODYNAMIC_SHOCK_PATTERN:
+          SBP < 100 AND HR > 100 (shock index > 1.0)
+          AND SBP_slope < -2 (falling BP)
+          → shock_probability: float
+        
+        NEURO_DETERIORATION_PATTERN:
+          GCS falling (slope < -0.3)
+          AND either HR or BP abnormal
+          → neuro_deterioration_probability: float
+        
+        CARDIAC_ARREST_RISK:
+          HR < 40 OR HR > 150
+          AND SBP < 80
+          AND news2_slope > 0.5 (rapidly rising)
+          → cardiac_arrest_probability: float
+      
+      STEP 4 — Time to Threshold Estimate:
+        If news2_slope > 0:
+          time_to_news2_7 = (7 - current_news2) / news2_slope
+          (in readings × 3 seconds = actual seconds)
+          Convert to minutes
+        
+        If news2_slope <= 0 or current_news2 >= 7:
+          time_to_news2_7 = None (already critical or improving)
+      
+      STEP 5 — Intervention Windows:
+        "Golden Hour" detection:
+          If any pattern probability > 0.6 AND 
+             current NEWS2 < 7 (still actionable):
+          intervention_window: str
+            "ACT NOW" if time_to_7 < 5 min
+            "ACT WITHIN 10 MIN" if < 10 min
+            "MONITOR CLOSELY" if < 20 min
+            "STABLE" otherwise
+      
+      Return DeteriorationForecast(
+        patient_id: str,
+        timestamp: ISO8601,
+        current_news2: int,
+        predicted_news2_5min: int,
+        predicted_news2_10min: int,
+        news2_trajectory: "RAPIDLY_RISING"|"RISING"|
+                          "STABLE"|"FALLING"|"RAPIDLY_FALLING",
+        vital_forecasts: {
+          vital_name: {
+            current: float,
+            predicted_5min: float,
+            slope: float,
+            direction: "WORSENING"|"STABLE"|"IMPROVING"
+          }
+        },
+        patterns: {
+          sepsis: float,
+          respiratory_failure: float,
+          hemodynamic_shock: float,
+          neuro_deterioration: float,
+          cardiac_arrest_risk: float
+        },
+        dominant_pattern: str | null,
+        dominant_pattern_probability: float,
+        intervention_window: str,
+        time_to_critical_minutes: float | null,
+        confidence: float,
+        forecast_basis: str   (explanation sentence)
+      )
+    
+    Background task: run forecast every 15 seconds 
+    for all patients. Store results in dict by patient_id.
+    
+    Routes:
+      GET /api/forecast/{patient_id} → DeteriorationForecast
+      GET /api/forecast/all → all 8 forecasts
+      GET /api/forecast/critical → 
+        patients where intervention_window != "STABLE"
+
+Create frontend/src/components/DeteriorationForecast.jsx:
+
+  TWO VERSIONS:
+  
+  MINI VERSION (PatientCard addition):
+    Add to bottom of each PatientCard below NEWS2/ICU row:
+    Single line bar:
+    
+    Left: trajectory arrow + label:
+      "↑↑ RAPIDLY RISING" red | "↑ RISING" amber |
+      "→ STABLE" grey | "↓ IMPROVING" green
+    
+    Center: "Critical in: ~4 min" OR nothing if stable
+      Red text, small font, only shown if time_to_critical < 15
+    
+    Right: dominant pattern if probability > 0.5:
+      "SEPSIS PATTERN" | "RESP FAILURE" | "SHOCK" etc.
+      Small red badge
+
+  FULL VERSION (new tab in PatientDetail):
+    Add "🔮 Forecast" as 5th tab in PatientDetail tab bar
+    
+    FORECAST HEADER:
+      Large intervention window banner:
+        "ACT NOW" — full red background, white text, 
+                    pulsing, 2rem font
+        "ACT WITHIN 10 MIN" — orange background
+        "MONITOR CLOSELY" — amber background
+        "STABLE" — green background
+      
+      Sub-text: forecast_basis sentence
+    
+    NEWS2 TRAJECTORY CHART:
+      Recharts ComposedChart, height 200px
+      
+      Historical data (solid cyan line):
+        Last 20 NEWS2 scores (actual)
+      
+      Forecast data (dashed red line):
+        Next 10 predicted points (5 min forecast)
+      
+      Vertical "NOW" line separating historical/forecast
+      
+      Reference lines:
+        y=5: "MEDIUM RISK" dashed amber
+        y=7: "HIGH RISK — ICU THRESHOLD" dashed red
+      
+      Confidence interval shading on forecast:
+        rgba(244,67,54,0.15) band between upper/lower bounds
+      
+      X-axis: time labels "-3min ... NOW ... +5min"
+      
+      If predicted line crosses y=7:
+        Intersection point: large red dot with label
+        "PREDICTED CRITICAL: T+{n}min"
+    
+    CLINICAL PATTERN RADAR:
+      SVG pentagon radar chart (5 axes, hand-coded):
+        Axes: Sepsis | Resp Failure | Shock | 
+              Neuro | Cardiac Arrest
+        Values: pattern probabilities 0-1
+        Filled shape: rgba(244,67,54,0.3)
+        Outline: #f44336
+        Axis labels at tips
+        Gridlines: 0.25, 0.5, 0.75 concentric pentagons
+      
+      Below radar: dominant pattern callout box:
+        If any pattern > 0.5:
+          "⚠ DOMINANT PATTERN: {pattern_name}"
+          "{probability}% probability"
+          Clinical implication sentence
+    
+    VITAL SIGN FORECASTS TABLE:
+      6 rows, one per vital sign:
+      Columns: Vital | Current | In 5min | Trend | Status
+      
+      "In 5min" column:
+        Colored by predicted value vs normal range:
+          In range: green | Out of range: amber | 
+          Critical: red
+        Arrow showing direction
+      
+      Trend column: small mini sparkline (SVG, 5 points)
+    
+    TIME TO CRITICAL COUNTDOWN:
+      If time_to_critical_minutes is not null:
+        Large countdown display:
+          "⏱ ESTIMATED TIME TO CRITICAL:"
+          Large number: "{n} minutes" 
+          Counts down in real-time (JS interval)
+          Color: < 5min red | 5-10min orange | > 10min amber
+        
+        Progress bar: shows "urgency" filling left to right
+          Full = 0 minutes (critical now)
+          Empty = 30+ minutes
+      
+      If null (stable or already critical):
+        Either "✓ No critical threshold predicted"
+        Or "⚠ Already in critical range"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 2 — CLINICAL HANDOFF GENERATOR
+═══════════════════════════════════════════════════════════════
+
+Shift handoffs are one of the highest-risk moments in 
+clinical care. 80% of medical errors happen during handoff.
+VitalIQ auto-generates SBAR handoff reports.
+
+Create backend/ai/handoff_generator.py:
+
+  SBAR = Situation, Background, Assessment, Recommendation
+  The gold standard handoff format used globally.
+  
+  Function: async generate_sbar(
+    patient: Patient,
+    vitals: VitalSigns,
+    news2: NEWS2Result,
+    forecast: DeteriorationForecast,
+    labs: list[LabResult],
+    interactions: list[DrugInteraction],
+    differential: DifferentialDiagnosis,
+    icu_prediction: ICUPrediction,
+    alerts: list[ClinicalAlert]
+  ) -> SBARHandoff
+  
+  SBARHandoff(
+    patient_id: str,
+    generated_at: ISO8601,
+    outgoing_provider: str,
+    
+    situation: str,
+      "Dr. [name], I'm calling about [patient name], 
+       [age/sex] in [bed], admitted for [chief complaint].
+       [One sentence current clinical status]."
+    
+    background: str,
+      "Patient has a history of [conditions]. 
+       Current medications include [key meds].
+       Relevant allergies: [allergies].
+       They arrived [X hours] ago with [complaint].
+       Key findings: [top 3 objective findings]."
+    
+    assessment: str,
+      "I believe the problem is [top diagnosis].
+       NEWS2 score is [n] ([risk level]).
+       ICU admission probability is [n]%.
+       [Deterioration forecast if relevant].
+       [Drug interactions if relevant]."
+    
+    recommendation: str,
+      "I am recommending [specific actions].
+       I need you to [specific requests].
+       Do you have any questions?"
+    
+    urgency: "ROUTINE"|"URGENT"|"EMERGENT",
+    key_concerns: list[str],    (top 3 bullet points)
+    pending_items: list[str],   (outstanding orders/results)
+    verbal_summary: str         (30-second spoken version)
+  )
+  
+  Gemini prompt:
+    "You are generating an SBAR clinical handoff report.
+     Write in first-person physician voice.
+     Be specific — use actual values from the data.
+     Use real clinical terminology.
+     The SITUATION must be 2-3 sentences maximum.
+     The BACKGROUND must include only clinically relevant history.
+     The ASSESSMENT must state a clear clinical impression.
+     The RECOMMENDATION must be specific and actionable.
+     
+     CRITICAL: verbal_summary must be speakable in 30 seconds.
+     It should be natural spoken English, not medical jargon.
+     Format: plain JSON. {situation, background, assessment, 
+     recommendation, urgency, key_concerns, pending_items, 
+     verbal_summary}"
+  
+  Route: POST /api/ai/handoff/{patient_id}
+  Route: GET /api/ai/handoff/department → 
+    generates handoff for ALL 8 patients as a shift report
+
+Create frontend/src/components/HandoffGenerator.jsx:
+
+  Accessible from:
+    1. Button in PatientHeader: "📋 Generate Handoff"
+    2. "Department Handoff" button in main header
+       (generates for all 8 patients)
+  
+  Opens as a modal (centered, dark overlay):
+    Width: 700px, max-height: 85vh, scrollable
+  
+  PRE-GENERATION STATE:
+    Patient name + current status summary
+    "Generate SBAR Handoff Report" as H2
+    Urgency auto-selected based on NEWS2:
+      NEWS2 ≥ 7: EMERGENT pre-selected (red)
+      NEWS2 5-6: URGENT pre-selected (amber)
+      NEWS2 < 5: ROUTINE pre-selected (green)
+    "Outgoing Provider:" input (pre-filled with attending)
+    "Generate" button
+  
+  GENERATION STATE:
+    "Generating clinical handoff..."
+    Medical cross animation
+  
+  POST-GENERATION STATE:
+    URGENCY BANNER (large, top):
+      EMERGENT: red | URGENT: amber | ROUTINE: green
+    
+    4 SBAR cards, color coded:
+      S (red left border): SITUATION
+      B (blue left border): BACKGROUND  
+      A (amber left border): ASSESSMENT
+      R (green left border): RECOMMENDATION
+    
+    Each card: readable text, editable
+    
+    KEY CONCERNS section:
+      3 bullet points, bold
+    
+    PENDING ITEMS checklist:
+      Checkboxes for outstanding items
+    
+    VERBAL SUMMARY box:
+      Grey background
+      "30-Second Spoken Summary:"
+      Text in larger readable font
+      🔊 "Read Aloud" button:
+        Uses Web Speech API (speechSynthesis)
+        Reads verbal_summary aloud
+        Button changes to "⏹ Stop" while reading
+    
+    ACTION BUTTONS:
+      "📋 Copy SBAR" — copies formatted text
+      "📧 Send via Email" — opens mailto: with content
+      "🖨 Print" — window.print() with clean CSS
+      "🔄 Regenerate"
+    
+  DEPARTMENT HANDOFF (all 8 patients):
+    Same modal but with patient tabs at top
+    Each tab: patient name + urgency color dot
+    Navigate between patients' SBARs
+    "Print All" button — generates printable multi-page report
+
+═══════════════════════════════════════════════════════════════
+FEATURE 3 — CLINICAL DECISION TIMELINE
+═══════════════════════════════════════════════════════════════
+
+A full audit trail of everything that happened to a patient.
+This is what hospitals need for medicolegal defense.
+Joint Commission requires this level of documentation.
+
+Create backend/analysis/clinical_timeline.py:
+
+  Class ClinicalTimeline:
+    Per patient, maintains chronological event log:
+    
+    TimelineEvent(
+      event_id: str,
+      patient_id: str,
+      timestamp: ISO8601,
+      event_type: "VITALS_CHANGE"|"NEWS2_CHANGE"|
+                  "ALERT_GENERATED"|"ALERT_ACKNOWLEDGED"|
+                  "AI_DIAGNOSIS"|"SOAP_NOTE"|"HANDOFF"|
+                  "DRUG_INTERACTION"|"LAB_RESULT"|
+                  "ICU_THRESHOLD"|"DETERIORATION_EVENT"|
+                  "FORECAST_CRITICAL",
+      title: str,
+      detail: str,
+      severity: "INFO"|"WARN"|"URGENT"|"CRITICAL",
+      triggered_by: "SYSTEM"|"AI"|"VITALS_ENGINE",
+      data_snapshot: dict   (relevant data at that moment)
+    )
+    
+    Auto-generates events for:
+      Every NEWS2 change of ≥ 2 points
+      Every new ClinicalAlert
+      Every AI diagnosis generation
+      Every SOAP note generation
+      Every handoff generation
+      Every deterioration event from vitals engine
+      Every critical lab result
+      Every drug interaction detection
+      Every time forecast crosses "ACT NOW" threshold
+    
+    Store: deque(maxlen=200) per patient
+    
+    Routes:
+      GET /api/timeline/{patient_id} → all events, newest first
+      GET /api/timeline/{patient_id}/summary → 
+        counts by event_type, first/last event timestamps
+      GET /api/timeline/department → 
+        all events all patients, interleaved, last 100
+
+Create frontend/src/components/ClinicalTimeline.jsx:
+
+  Accessible from:
+    Tab in PatientDetail: add "📅 Timeline" as 6th tab
+    Department view: button in header "📅 Timeline"
+  
+  PATIENT TIMELINE VIEW:
+    
+    Vertical timeline, newest at top
+    
+    Each event:
+      Left: colored dot + vertical line connecting events
+        INFO: blue | WARN: amber | URGENT: orange | 
+        CRITICAL: red
+      
+      Center:
+        Time: absolute (HH:MM:SS) + relative ("4 min ago")
+        Event type badge (small)
+        Title: bold
+        Detail: normal weight, muted color
+        
+        Expandable "data snapshot" section:
+          Shows key values at that moment
+          e.g. for VITALS_CHANGE: 
+            "HR: 88→134 | SpO2: 96%→82%"
+          e.g. for NEWS2_CHANGE:
+            "NEWS2: 3→11 (+8 points)"
+          e.g. for AI_DIAGNOSIS:
+            "Top diagnosis: STEMI (78%)"
+      
+      Right: severity badge
+      
+      CRITICAL events: 
+        Full-width red background tint on that row
+        Slightly larger than other events
+    
+    Filter bar above timeline:
+      Toggle buttons: ALL | VITALS | ALERTS | AI | LABS
+      Each toggles that event type on/off
+      
+    "Export Timeline (PDF)" button:
+      Generates print-friendly version
+      window.print() with clean CSS
+      Suitable for medical record inclusion
+  
+  DEPARTMENT TIMELINE VIEW:
+    Same design but patient name shown on each event
+    Color coding by patient (8 distinct colors for 8 patients)
+    Legend showing which color = which patient
+    Helps identify overlapping deterioration events
+
+═══════════════════════════════════════════════════════════════
+FEATURE 4 — SEPSIS BUNDLE TRACKER
+═══════════════════════════════════════════════════════════════
+
+The Sepsis-3 bundle is a standardized set of interventions
+required within 1 and 3 hours of sepsis recognition.
+Hospitals are penalized by CMS if bundles are incomplete.
+This is a real compliance requirement worth millions.
+
+Create backend/analysis/sepsis_tracker.py:
+
+  Class SepsisTracker:
+    
+    Per patient, evaluate Sepsis-3 criteria:
+    
+    SEPSIS SCREENING (qSOFA):
+      qSOFA score (Quick Sequential Organ Failure Assessment):
+        RR ≥ 22: +1
+        Altered mentation (GCS < 15): +1
+        SBP ≤ 100: +1
+      qSOFA ≥ 2: sepsis concern
+    
+    SEPSIS BUNDLE — 1 HOUR BUNDLE:
+      □ Measure lactate level
+      □ Obtain blood cultures before antibiotics
+      □ Administer broad-spectrum antibiotics
+      □ Begin 30mL/kg crystalloid for hypotension/lactate≥4
+      □ Apply vasopressors if MAP < 65 despite fluids
+    
+    SEPSIS BUNDLE — 3 HOUR BUNDLE:
+      □ Reassess volume status
+      □ Reassess tissue perfusion
+      □ Document reassessment
+    
+    SepsisStatus(
+      patient_id: str,
+      qsofa_score: int,
+      qsofa_criteria_met: list[str],
+      sepsis_concern: bool,
+      sepsis_confirmed: bool,     
+      bundle_1hr: {
+        item: str,
+        completed: bool,
+        time_to_complete: int | null,   (minutes)
+        overdue: bool
+      }[],
+      bundle_3hr: same structure,
+      time_since_recognition: int,     (minutes, if recognized)
+      bundle_compliance: float,         (0-1, % completed)
+      cms_penalty_risk: bool,
+      alert_generated: bool
+    )
+    
+    Sepsis "recognition" triggered when:
+      qSOFA ≥ 2 AND (Temp > 38.3 OR < 36 OR WBC > 12 or < 4)
+      Start the clock at that moment
+    
+    Route: GET /api/sepsis/{patient_id}
+    Route: GET /api/sepsis/all → all patients screening results
+    Route: POST /api/sepsis/{patient_id}/bundle/{item_id}/complete
+      Mark a bundle item as completed (UI toggle)
+
+Create frontend/src/components/SepsisTracker.jsx:
+
+  Shown in PatientDetail for relevant patients
+  Auto-appears as a prominent banner if qSOFA ≥ 2
+  
+  SEPSIS ALERT BANNER:
+    If sepsis_concern: full-width amber banner
+    If sepsis_confirmed: full-width red pulsing banner
+    
+    "⚠ SEPSIS CONCERN — qSOFA: {n}/3"
+    Sub: criteria met listed inline
+    "Time since recognition: 00:47:23" live countdown UP
+  
+  qSOFA SCORECARD:
+    3 criteria boxes in a row:
+      Each: criterion name | patient's value | 
+            Met (red check) or Not Met (grey X)
+    Total score prominently: "{n}/3"
+  
+  1-HOUR BUNDLE CHECKLIST:
+    Header: "Hour-1 Bundle" | time remaining countdown
+    If overdue: "OVERDUE — {n} min past deadline" red
+    
+    5 checkboxes:
+      Physician can click to mark complete (POST to API)
+      Completed: green check, strikethrough text
+      Overdue: red background on incomplete items
+      
+      Each item has "?" tooltip with clinical detail
+  
+  3-HOUR BUNDLE:
+    Same design, separate section below
+  
+  CMS PENALTY RISK badge:
+    If cms_penalty_risk: 
+      "⚠ CMS PENALTY RISK" red badge
+      Tooltip: "Incomplete sepsis bundle may result in 
+               CMS quality penalty"
+  
+  Bundle compliance bar:
+    "Bundle Compliance: 60%" with color bar
+    Green → amber → red as compliance decreases
+  
+  This component is also shown as a compact 
+  summary card in PatientCard on the board 
+  if sepsis_concern = true:
+    Small banner below alert strip:
+    "🦠 SEPSIS CONCERN — Bundle: 3/5 complete"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 5 — MEDICATION ADMINISTRATION TRACKER
+═══════════════════════════════════════════════════════════════
+
+Tracks when medications are due, overdue, or administered.
+Medication timing errors are the #1 source of preventable 
+harm in hospitals. This feature addresses a $17B problem.
+
+Create backend/core/medication_tracker.py:
+
+  Class MedicationTracker:
+    Per patient, tracks administration schedule:
+    
+    MedicationDose(
+      dose_id: str,
+      patient_id: str,
+      medication: Medication,
+      scheduled_time: ISO8601,
+      administered_time: ISO8601 | null,
+      status: "UPCOMING"|"DUE"|"OVERDUE"|"ADMINISTERED"|
+              "HELD"|"REFUSED",
+      held_reason: str | null,
+      nurse_id: str | null,
+      alert_sent: bool
+    )
+    
+    Generate schedule for each patient based on 
+    their medication frequency:
+      QD (once daily): next dose at +24h from "started"
+      BID (twice daily): every 12h
+      TID: every 8h
+      QID: every 6h
+      PRN (as needed): no schedule
+      
+    Status transitions:
+      > 30min before scheduled: UPCOMING
+      Within 30min: DUE (generate alert)
+      Past scheduled time: OVERDUE (generate URGENT alert)
+    
+    Routes:
+      GET /api/medications/{patient_id}/schedule →
+        All doses with status, sorted by scheduled_time
+      GET /api/medications/overdue →
+        All overdue doses across all patients
+      POST /api/medications/{dose_id}/administer →
+        Mark as administered, timestamp it
+      POST /api/medications/{dose_id}/hold →
+        Body: {reason: str}
+
+Create frontend/src/components/MedicationTracker.jsx:
+
+  Shown in PatientDetail left column 
+  (below DrugChecker, collapsible)
+  
+  "💊 MEDICATION SCHEDULE" header
+  
+  Timeline view of doses:
+    Past doses (greyed): administered or missed
+    Current window (next 2 hours): highlighted
+    Future doses: normal
+    
+    Each dose row:
+      Status dot: green (administered) | blue (upcoming) |
+                  amber (due) | red (overdue)
+      Medication name + dose
+      Scheduled time + time until due
+      
+      OVERDUE rows:
+        Red background tint
+        "OVERDUE: {n} min" badge
+        "⚠ Administer" button → POST to administer
+        
+      DUE rows:
+        Amber pulsing border
+        "Due Now" badge
+        "✓ Mark Administered" button
+      
+      HOLD button on each upcoming dose
+        Opens small modal: "Reason for hold:"
+        On submit: changes status to HELD
+  
+  Summary bar at top:
+    "Due: {n} | Overdue: {n} | Upcoming: {n}"
+    Overdue count in red badge if > 0
+
+═══════════════════════════════════════════════════════════════
+FEATURE 6 — DEPARTMENT COMMAND CENTER
+═══════════════════════════════════════════════════════════════
+
+A separate "god view" for charge nurses and department heads.
+Not the patient board — a strategic overview dashboard.
+
+Create frontend/src/components/CommandCenter.jsx:
+
+  Accessible from header: "⚡ COMMAND" button
+  Opens as full-screen overlay (not a drawer)
+  
+  HEADER:
+    "⚡ DEPARTMENT COMMAND CENTER"
+    Current time | Shift: "Day Shift 07:00-19:00" |
+    "{n} hours remaining in shift"
+    "✕ Exit" top right
+  
+  LAYOUT — 3 sections:
+  
+  TOP SECTION (30% height) — DEPARTMENT METRICS:
+    8 large metric cards in a row:
+    
+    "CRITICAL PATIENTS" — count, red if > 0
+    "NEWS2 ≥ 7" — count with patient names tooltip
+    "AVG NEWS2" — department average, color coded
+    "ICU CANDIDATES" — ICU probability > 75% count
+    "SEPSIS ALERTS" — active sepsis concerns
+    "OVERDUE MEDS" — medication administration overdue
+    "UNACK ALERTS" — number, red if > 10
+    "AVG ED TIME" — hours:minutes
+    
+    Each metric: clicking filters the patient list below
+  
+  MIDDLE SECTION (40% height) — PATIENT PRIORITY MATRIX:
+    
+    2D scatter plot (SVG, hand-coded):
+    X-axis: Time in ED (0-8 hours)
+    Y-axis: NEWS2 Score (0-20)
+    
+    Each patient = a circle:
+      Size: proportional to ICU probability
+      Color: acuity color (ESI 1-5)
+      Label: patient name inside circle
+      
+      Quadrants:
+        Top-right (HIGH NEWS2, LONG stay): 
+          "CRITICAL ZONE" red shading
+        Top-left (HIGH NEWS2, SHORT stay): 
+          "NEWLY CRITICAL" orange shading
+        Bottom-right (LOW NEWS2, LONG stay): 
+          "BOARDING" amber shading
+        Bottom-left: "STABLE" green shading
+      
+      Click any circle: exits command center + 
+                        opens that patient detail
+    
+    Quadrant labels in corners (subtle)
+  
+  BOTTOM SECTION (30% height) — SHIFT INTELLIGENCE:
+    3 columns:
+    
+    Left — "PREDICTED NEXT HOUR":
+      Gemini AI prediction for department:
+      "Based on current trajectories..."
+      Which patients will deteriorate
+      Estimated ICU transfers
+      Anticipated discharges
+      Refreshes every 5 minutes
+    
+    Center — "ACTIVE ALERTS FEED":
+      Compact version of AlertTimeline
+      All patients, last 10 alerts
+      Real-time SSE updates
+    
+    Right — "SHIFT SUMMARY":
+      Auto-generated at bottom of each hour:
+      Patients seen: {n}
+      Alerts generated: {n}
+      Critical events: {n}
+      "Generate Shift Report" button →
+        Calls Gemini for a paragraph summary
+        Shows in modal, copyable
+
+═══════════════════════════════════════════════════════════════
+FEATURE 7 — CINEMATIC PRESENTATION MODE
+═══════════════════════════════════════════════════════════════
+
+For hackathon judging. Press "P" for Presentation Mode.
+Auto-cycles through most dramatic patient moments.
+This is your 60-second demo weapon.
+
+Create frontend/src/components/PresentationMode.jsx:
+
+  Triggered by: "P" keyboard shortcut OR 
+  "📊 Present" button in header
+  
+  Full-screen overlay, black background
+  Escape to exit
+  
+  AUTO-PILOT SEQUENCE (loops):
+  
+  SLIDE 1 — Department Overview (8 seconds):
+    Large centered title:
+    "🏥 EMERGENCY DEPARTMENT — LIVE"
+    Current time, large
+    
+    3 massive stat cards:
+      CRITICAL PATIENTS: {n}
+      ACTIVE ALERTS: {n}  
+      HIGHEST NEWS2: {n} — Patient Name
+    
+    Department status pill (large)
+    "Powered by VitalIQ AI Platform" bottom
+  
+  SLIDE 2 — Most Critical Patient (12 seconds):
+    Takes the highest NEWS2 patient
+    
+    Split screen:
+    Left: PatientCard (enlarged, all vitals visible)
+          With all critical values flashing
+    
+    Right: 
+      NEWS2 gauge (large version)
+      ICU probability (large %)
+      Forecast: "CRITICAL IN: {n} min" countdown
+      Top diagnosis from differential
+    
+    Bottom ticker: scrolling alert strip for this patient
+    
+    Dramatic caption: "NEWS2 {n} — ICU probability {n}%"
+  
+  SLIDE 3 — AI Diagnosis Reveal (10 seconds):
+    For the most critical patient
+    
+    Animated reveal of differential:
+      Title fades in: "🧠 AI DIFFERENTIAL DIAGNOSIS"
+      Diagnoses appear one by one with stagger animation
+      Each: rank + diagnosis + probability bar fills
+      ICD-10 codes appear with subtle fade
+    
+    Bottom: disposition recommendation (large, colored)
+    "Generated by Gemini AI in real-time"
+  
+  SLIDE 4 — Drug Interaction Alert (8 seconds):
+    Most severe drug interaction across all patients
+    
+    Full-screen:
+      "⚠ MAJOR DRUG INTERACTION DETECTED"
+      Drug pair in huge text: "Warfarin ↔ Ibuprofen"
+      Patient name + bed
+      Effect: large amber text
+      Recommendation: blue box
+  
+  SLIDE 5 — Deterioration Forecast (10 seconds):
+    NEWS2 trajectory chart full screen
+    Historical + forecast clearly labeled
+    "PREDICTED CRITICAL" marker if applicable
+    Dominant pattern callout
+  
+  SLIDE 6 — Sepsis Bundle (8 seconds):
+    If any patient has sepsis concern:
+    "🦠 SEPSIS PROTOCOL ACTIVATED"
+    qSOFA score + criteria
+    Bundle checklist with completion status
+    Time counter since recognition
+  
+  SLIDE 7 — Department Intelligence (8 seconds):
+    Command Center scatter plot (full screen)
+    Patient circles animated, labels visible
+    Quadrant labels prominent
+    Caption: "Real-time patient prioritization matrix"
+  
+  SLIDE 8 — Technology Stack (6 seconds):
+    "HOW IT WORKS" tech breakdown:
+    
+    Visual flow diagram (SVG):
+    [Scapy Vitals Engine] → [NEWS2 Algorithm] → 
+    [sklearn ICU Predictor] → [Gemini AI] → 
+    [FHIR R4 Data Layer] → [Real-time Dashboard]
+    
+    Each node animates in with a connection line
+    "Built in 24 hours" at bottom
+    
+  Navigation controls (bottom of screen):
+    ← Previous | ⏸ Pause | ▶ Resume | → Next | ✕ Exit
+    Progress dots showing current slide position
+  
+  Keyboard: Left/Right arrows to navigate manually
+  "P" again or Escape: exit presentation mode
+
+═══════════════════════════════════════════════════════════════
+FEATURE 8 — PATIENT RISK SCORING HISTORY
+═══════════════════════════════════════════════════════════════
+
+Visual history of how a patient's risk evolved since arrival.
+Gives context that single-point measurements cannot.
+
+Add to backend/analysis/session_recorder.py 
+(or create if not exists):
+
+  Per patient, record every 30 seconds:
+  RiskSnapshot(
+    timestamp: ISO8601,
+    news2: int,
+    icu_probability: float,
+    dominant_pattern: str | null,
+    pattern_probability: float,
+    alert_count: int,
+    intervention_window: str
+  )
+  
+  Store: deque(maxlen=120) per patient (60 minutes)
+  
+  Route: GET /api/history/{patient_id}/risk →
+    list of RiskSnapshot ordered by time
+
+Create frontend/src/components/RiskHistory.jsx:
+
+  Full-width panel, shown at bottom of PatientDetail
+  Always visible (not behind a tab)
+  Height: 120px
+  
+  "📈 RISK TRAJECTORY — Since Arrival" header
+  
+  Dual-axis Recharts ComposedChart:
+    Left Y-axis: NEWS2 score (0-20)
+    Right Y-axis: ICU probability % (0-100)
+    X-axis: time since arrival
+    
+    Line 1: NEWS2 (red, solid)
+    Line 2: ICU probability (blue, dashed)
+    
+    Colored background bands:
+      NEWS2 0-4: rgba(76,175,80,0.05)
+      NEWS2 5-6: rgba(255,152,0,0.05)
+      NEWS2 7+: rgba(244,67,54,0.05)
+    
+    Vertical markers for key events (from timeline):
+      Small colored triangles at bottom of chart
+      Hover: tooltip showing what event occurred
+      Colors match event severity
+    
+    If patient is improving overall:
+      "↓ IMPROVING TREND" green badge top-right of chart
+    If worsening:
+      "↑ DETERIORATING" red badge
+
+═══════════════════════════════════════════════════════════════
+BACKEND ADDITIONS — main.py
+═══════════════════════════════════════════════════════════════
+
+Register all new routers:
+  from ai.deterioration_forecaster import router as forecast_router
+  from ai.handoff_generator import router as handoff_router
+  from analysis.clinical_timeline import router as timeline_router
+  from analysis.sepsis_tracker import router as sepsis_router
+  from core.medication_tracker import router as meds_router
+
+Add to startup event:
+  asyncio.create_task(
+    deterioration_forecaster.run_continuous()
+  )
+  asyncio.create_task(
+    sepsis_tracker.run_continuous()
+  )
+  asyncio.create_task(
+    medication_tracker.check_schedules_continuous()
+  )
+  asyncio.create_task(
+    clinical_timeline.auto_record_continuous()
+  )
+
+Add new Pydantic models to schemas.py:
+  DeteriorationForecast, VitalForecast, ClinicalPattern,
+  SBARHandoff, TimelineEvent, SepsisStatus, BundleItem,
+  MedicationDose, RiskSnapshot, CommandCenterMetrics
+
+═══════════════════════════════════════════════════════════════
+LAYOUT ADDITIONS — App.jsx
+═══════════════════════════════════════════════════════════════
+
+Header additions (left to right):
+  Logo | ED | [Forecast alerts count] | 
+  "⚡ COMMAND" button | "📊 PRESENT [P]" button |
+  Sepsis alert count (red if > 0) |
+  Overdue meds count (amber if > 0) |
+  CRITICAL LOAD | ALERTS | PATIENTS | AI ACTIVE | Time | ?
+
+Add keyboard shortcut "P" for PresentationMode
+Add keyboard shortcut "C" for CommandCenter
+
+PatientDetail tab bar — add:
+  5th tab: "🔮 Forecast" (DeteriorationForecast)
+  6th tab: "📅 Timeline" (ClinicalTimeline)
+
+PatientDetail left column — add below DrugChecker:
+  MedicationTracker (collapsible)
+  SepsisTracker (if qSOFA ≥ 2, otherwise hidden)
+
+PatientDetail full width bottom:
+  RiskHistory (always visible, 120px)
+
+PatientHeader — add button:
+  "📋 Handoff" → opens HandoffGenerator modal
+
+═══════════════════════════════════════════════════════════════
+QUALITY GATES
+═══════════════════════════════════════════════════════════════
+
+1. Deterioration forecast must update every 15s — 
+   never block vitals stream
+2. NEWS2 trajectory chart "NOW" line must be exact
+3. SBAR verbal summary must be speakable — test with 
+   speechSynthesis before finalizing
+4. Sepsis clock must count up from recognition time,
+   not reset on page refresh (store in backend state)
+5. Medication schedule must generate realistic times
+   based on each patient's medication frequency
+6. Command Center scatter plot must handle overlapping
+   patients (slightly offset circles, not hidden)
+7. Presentation mode must be smooth — pre-load all 
+   data before starting, no loading states mid-slide
+8. Clinical timeline must never miss a critical event
+9. Risk history chart must always show full arrival-to-now
+10. PresentationMode "P" shortcut must not trigger in 
+    text inputs (same guard as other shortcuts)
+11. HandoffGenerator speech API must gracefully fail 
+    if browser doesn't support speechSynthesis
+12. All new Gemini calls: 15s timeout, meaningful fallback
+
+═══════════════════════════════════════════════════════════════
+EXECUTE. File generation order:
+1.  backend/models/schemas.py (all new models)
+2.  backend/ai/deterioration_forecaster.py
+3.  backend/ai/handoff_generator.py
+4.  backend/analysis/clinical_timeline.py
+5.  backend/analysis/sepsis_tracker.py
+6.  backend/core/medication_tracker.py
+7.  backend/main.py (updated)
+8.  src/components/DeteriorationForecast.jsx
+9.  src/components/HandoffGenerator.jsx
+10. src/components/ClinicalTimeline.jsx
+11. src/components/SepsisTracker.jsx
+12. src/components/MedicationTracker.jsx
+13. src/components/CommandCenter.jsx
+14. src/components/PresentationMode.jsx
+15. src/components/RiskHistory.jsx
+16. src/store/clinicalStore.js (updated)
+17. src/App.jsx (updated)
+
+Confirm each file with ✓.
+Do not stop until all 17 are complete.
+Do not rebuild anything already working.
+Do not touch frontend components that exist.
+═══════════════════════════════════════════════════════════════

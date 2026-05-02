@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from enum import Enum
 
 
@@ -41,7 +41,7 @@ class Patient(BaseModel):
     allergies: List[str]
     current_medications: List[Medication]
     active_conditions: List[str]
-    acuity: int  # 1-5 ESI level
+    acuity: int
 
 
 class VitalSigns(BaseModel):
@@ -133,7 +133,7 @@ class NEWS2Result(BaseModel):
 
 class DeteriorationTrend(BaseModel):
     is_deteriorating: bool
-    trend_direction: str  # IMPROVING | STABLE | WORSENING
+    trend_direction: str
     rate_of_change: dict
     predicted_news_in_5min: int
     confidence: float
@@ -285,3 +285,144 @@ class DrugCheckRequest(BaseModel):
 
 class AlertCount(BaseModel):
     count: int
+
+
+# ─── Phase 3 Models ──────────────────────────────────────────────────────────
+
+class VitalForecastItem(BaseModel):
+    current: float
+    predicted_5min: float
+    slope: float
+    direction: str
+
+
+class ClinicalPatterns(BaseModel):
+    sepsis: float
+    respiratory_failure: float
+    hemodynamic_shock: float
+    neuro_deterioration: float
+    cardiac_arrest_risk: float
+
+
+class DeteriorationForecast(BaseModel):
+    patient_id: str
+    timestamp: str
+    current_news2: int
+    predicted_news2_5min: int
+    predicted_news2_10min: int
+    news2_trajectory: str
+    news2_history: List[int]
+    vital_forecasts: Dict[str, Any]
+    patterns: Dict[str, float]
+    dominant_pattern: Optional[str]
+    dominant_pattern_probability: float
+    intervention_window: str
+    time_to_critical_minutes: Optional[float]
+    confidence: float
+    forecast_basis: str
+
+
+class SBARUrgency(str, Enum):
+    ROUTINE = "ROUTINE"
+    URGENT = "URGENT"
+    EMERGENT = "EMERGENT"
+
+
+class SBARHandoff(BaseModel):
+    patient_id: str
+    generated_at: str
+    outgoing_provider: str
+    situation: str
+    background: str
+    assessment: str
+    recommendation: str
+    urgency: SBARUrgency
+    key_concerns: List[str]
+    pending_items: List[str]
+    verbal_summary: str
+
+
+class TimelineEventType(str, Enum):
+    VITALS_CHANGE = "VITALS_CHANGE"
+    NEWS2_CHANGE = "NEWS2_CHANGE"
+    ALERT_GENERATED = "ALERT_GENERATED"
+    ALERT_ACKNOWLEDGED = "ALERT_ACKNOWLEDGED"
+    AI_DIAGNOSIS = "AI_DIAGNOSIS"
+    SOAP_NOTE = "SOAP_NOTE"
+    HANDOFF = "HANDOFF"
+    DRUG_INTERACTION = "DRUG_INTERACTION"
+    LAB_RESULT = "LAB_RESULT"
+    ICU_THRESHOLD = "ICU_THRESHOLD"
+    DETERIORATION_EVENT = "DETERIORATION_EVENT"
+    FORECAST_CRITICAL = "FORECAST_CRITICAL"
+
+
+class TimelineEvent(BaseModel):
+    event_id: str
+    patient_id: str
+    timestamp: str
+    event_type: TimelineEventType
+    title: str
+    detail: str
+    severity: str
+    triggered_by: str
+    data_snapshot: Dict[str, Any]
+
+
+class BundleItem(BaseModel):
+    item_id: str
+    item: str
+    completed: bool
+    completed_at: Optional[str] = None
+    time_to_complete: Optional[int] = None
+    overdue: bool
+
+
+class SepsisStatus(BaseModel):
+    patient_id: str
+    qsofa_score: int
+    qsofa_criteria_met: List[str]
+    sepsis_concern: bool
+    sepsis_confirmed: bool
+    bundle_1hr: List[BundleItem]
+    bundle_3hr: List[BundleItem]
+    time_since_recognition: Optional[int] = None
+    recognition_time: Optional[str] = None
+    bundle_compliance: float
+    cms_penalty_risk: bool
+    alert_generated: bool
+
+
+class DoseStatus(str, Enum):
+    UPCOMING = "UPCOMING"
+    DUE = "DUE"
+    OVERDUE = "OVERDUE"
+    ADMINISTERED = "ADMINISTERED"
+    HELD = "HELD"
+    REFUSED = "REFUSED"
+
+
+class MedicationDose(BaseModel):
+    dose_id: str
+    patient_id: str
+    medication_name: str
+    dose: str
+    route: str
+    frequency: str
+    scheduled_time: str
+    administered_time: Optional[str] = None
+    status: DoseStatus
+    held_reason: Optional[str] = None
+    nurse_id: Optional[str] = None
+    alert_sent: bool = False
+    minutes_until_due: Optional[int] = None
+
+
+class RiskSnapshot(BaseModel):
+    timestamp: str
+    news2: int
+    icu_probability: float
+    dominant_pattern: Optional[str]
+    pattern_probability: float
+    alert_count: int
+    intervention_window: str

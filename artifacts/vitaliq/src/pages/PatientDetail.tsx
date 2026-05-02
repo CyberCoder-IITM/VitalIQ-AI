@@ -15,12 +15,22 @@ import AlertTimeline from "@/components/AlertTimeline";
 import TriageAgent from "@/components/TriageAgent";
 import AlertsDrawer from "@/components/AlertsDrawer";
 import TriageDrawer from "@/components/TriageDrawer";
+import DeteriorationForecast from "@/components/DeteriorationForecast";
+import ClinicalTimeline from "@/components/ClinicalTimeline";
+import SepsisTracker from "@/components/SepsisTracker";
+import MedicationTracker from "@/components/MedicationTracker";
+import RiskHistory from "@/components/RiskHistory";
+import HandoffGenerator from "@/components/HandoffGenerator";
+import { useGetNews2Score } from "@workspace/api-client-react";
+import { useClinicalStore as useStore } from "@/store/clinicalStore";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "diagnosis", label: "🧠 AI Diagnosis" },
   { id: "soap", label: "📝 SOAP Note" },
   { id: "drugs", label: "💊 Drug Safety" },
   { id: "labs", label: "🔬 Lab Trends" },
+  { id: "forecast", label: "🔮 Forecast" },
+  { id: "timeline", label: "📅 Timeline" },
 ];
 
 const SUGGESTIONS = [
@@ -139,8 +149,9 @@ export default function PatientDetail() {
   const [, navigate] = useLocation();
   const patientId = params?.id ?? "";
 
-  const { activeTab, setActiveTab, disclaimerDismissed, dismissDisclaimer, alertsDrawerOpen, triageDrawerOpen } = useClinicalStore();
+  const { activeTab, setActiveTab, disclaimerDismissed, dismissDisclaimer, alertsDrawerOpen, triageDrawerOpen, handoffPatientId, setHandoffPatientId } = useClinicalStore();
   const { data: patient, isLoading } = useGetPatient(patientId);
+  const { data: news2 } = useGetNews2Score(patientId, { query: { refetchInterval: 4000, enabled: !!patientId } });
 
   if (isLoading) {
     return (
@@ -162,7 +173,6 @@ export default function PatientDetail() {
       <Header />
       <PatientHeader patientId={patientId} onBack={() => navigate("/")} />
 
-      {/* Main scrollable content */}
       <div className="flex-1 overflow-y-auto">
         {/* 3-column grid */}
         <div className="grid gap-3 p-3" style={{ gridTemplateColumns: "272px 1fr 272px" }}>
@@ -171,6 +181,8 @@ export default function PatientDetail() {
             <NEWS2Gauge patientId={patientId} />
             <ICUPredictor patientId={patientId} />
             <DrugChecker patientId={patientId} patient={patient} compact />
+            <MedicationTracker patientId={patientId} />
+            <SepsisTracker patientId={patientId} />
           </div>
 
           {/* Center column */}
@@ -187,13 +199,13 @@ export default function PatientDetail() {
         </div>
 
         {/* Bottom tabs section */}
-        <div className="border-t border-border mx-3 mb-3 rounded-lg overflow-hidden bg-card">
-          <div className="flex border-b border-border">
+        <div className="border-t border-border mx-3 mb-0 rounded-t-lg overflow-hidden bg-card">
+          <div className="flex border-b border-border overflow-x-auto">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-5 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? "border-primary text-primary bg-primary/5"
                     : "border-transparent text-muted-foreground hover:text-foreground"
@@ -208,14 +220,27 @@ export default function PatientDetail() {
             {activeTab === "soap" && <SOAPNoteWriter patientId={patientId} patient={patient} />}
             {activeTab === "drugs" && <DrugChecker patientId={patientId} patient={patient} />}
             {activeTab === "labs" && <LabResults patientId={patientId} />}
+            {activeTab === "forecast" && <DeteriorationForecast patientId={patientId} />}
+            {activeTab === "timeline" && <ClinicalTimeline patientId={patientId} />}
           </div>
         </div>
+
+        {/* Risk History — always visible */}
+        <RiskHistory patientId={patientId} />
       </div>
 
       <ClinicalQueryBar patientId={patientId} />
 
       {alertsDrawerOpen && <AlertsDrawer />}
       {triageDrawerOpen && <TriageDrawer currentPatientId={patientId} />}
+      {handoffPatientId === patientId && (
+        <HandoffGenerator
+          patientId={patientId}
+          patientName={patient?.name}
+          news2={news2?.score}
+          onClose={() => setHandoffPatientId(null)}
+        />
+      )}
     </div>
   );
 }

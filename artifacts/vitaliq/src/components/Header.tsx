@@ -2,12 +2,18 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useGetUnacknowledgedCount, useGetLatestTriage } from "@workspace/api-client-react";
 import { useClinicalStore } from "@/store/clinicalStore";
+import { useGetAllSepsisStatuses, useGetOverdueMedications } from "@/hooks/usePhase3Api";
 
 export default function Header() {
   const [now, setNow] = useState(new Date());
   const { data: alertCount } = useGetUnacknowledgedCount({ query: { refetchInterval: 5000 } });
   const { data: triage } = useGetLatestTriage({ query: { refetchInterval: 15000 } });
-  const { toggleAlertsDrawer, toggleTriageDrawer, setKeyboardShortcutsOpen } = useClinicalStore();
+  const { data: sepsisList = [] } = useGetAllSepsisStatuses();
+  const { data: overdueMeds = [] } = useGetOverdueMedications();
+  const {
+    toggleAlertsDrawer, toggleTriageDrawer, setKeyboardShortcutsOpen,
+    setCommandCenterOpen, setPresentationModeOpen,
+  } = useClinicalStore();
   const [location] = useLocation();
 
   useEffect(() => {
@@ -23,15 +29,55 @@ export default function Header() {
   };
 
   const unacknowledgedCount = alertCount?.count ?? 0;
+  const sepsisCount = (sepsisList as any[]).filter(s => s.sepsis_concern).length;
+  const overdueMedCount = (overdueMeds as any[]).length;
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center px-4 gap-3 shrink-0 z-10">
+    <header className="h-14 bg-card border-b border-border flex items-center px-4 gap-2 shrink-0 z-10">
       <div className="flex items-center gap-2">
         <span className="text-primary font-bold text-lg tracking-tight">VitalIQ</span>
         <span className="text-muted-foreground text-xs border-l border-border pl-2">Emergency Department</span>
       </div>
 
       <div className="flex-1" />
+
+      {/* Command Center */}
+      <button
+        onClick={() => setCommandCenterOpen(true)}
+        className="flex items-center gap-1 text-xs font-medium text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors"
+        title="Command Center [C]"
+      >
+        ⚡ COMMAND
+      </button>
+
+      {/* Presentation Mode */}
+      <button
+        onClick={() => setPresentationModeOpen(true)}
+        className="flex items-center gap-1 text-xs font-medium text-purple-400 border border-purple-400/30 bg-purple-400/10 hover:bg-purple-400/20 px-2 py-1 rounded transition-colors"
+        title="Presentation Mode [P]"
+      >
+        📊 PRESENT
+      </button>
+
+      {/* Sepsis indicator */}
+      {sepsisCount > 0 && (
+        <button
+          className="flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded animate-pulse"
+          title={`${sepsisCount} sepsis concern(s)`}
+        >
+          🦠 <span className="font-bold">{sepsisCount}</span>
+        </button>
+      )}
+
+      {/* Overdue meds indicator */}
+      {overdueMedCount > 0 && (
+        <button
+          className="flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded"
+          title={`${overdueMedCount} overdue medication(s)`}
+        >
+          💊 <span className="font-bold">{overdueMedCount}</span>
+        </button>
+      )}
 
       <div className={`text-xs font-medium px-2 py-0.5 rounded border ${deptColors[deptStatus] ?? deptColors.CONTROLLED}`}>
         {deptStatus.replace("_", " ")}
