@@ -175,7 +175,7 @@ export default function PatientDetail() {
 
       <div className="flex-1 overflow-y-auto">
         {/* 3-column grid */}
-        <div className="grid gap-3 p-3" style={{ gridTemplateColumns: "272px 1fr 272px" }}>
+        <div className="grid gap-3 p-3 items-start" style={{ gridTemplateColumns: "272px 1fr 272px" }}>
           {/* Left column */}
           <div className="space-y-3 min-w-0">
             <NEWS2Gauge patientId={patientId} />
