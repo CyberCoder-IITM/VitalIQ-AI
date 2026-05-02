@@ -2,124 +2,118 @@ import { useGetNews2Score, useGetCurrentVitals } from "@workspace/api-client-rea
 
 interface Props { patientId: string; }
 
-function ArcGauge({ score }: { score: number }) {
-  const maxScore = 20;
-  const pct = Math.min(1, score / maxScore);
-  const R = 60;
-  const cx = 80;
-  const cy = 80;
-  const startAngle = 210;
-  const endAngle = 330;
-  const totalDeg = 300;
-
-  function polarToXY(deg: number, r: number) {
+function SemiArc({ score }: { score: number }) {
+  const R = 72; const cx = 90; const cy = 90;
+  const toXY = (deg: number, r: number) => {
     const rad = ((deg - 90) * Math.PI) / 180;
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  };
+  function arc(s: number, e: number, r: number) {
+    const [x1, y1] = toXY(s, r); const [x2, y2] = toXY(e, r);
+    const large = e - s > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
   }
-
-  function arcPath(startDeg: number, endDeg: number, r: number) {
-    const start = polarToXY(startDeg, r);
-    const end = polarToXY(endDeg, r);
-    const large = endDeg - startDeg > 180 ? 1 : 0;
-    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
-  }
-
-  const greenEnd = startAngle + (totalDeg * 4) / maxScore;
-  const amberEnd = startAngle + (totalDeg * 6) / maxScore;
-  const redEnd = startAngle + totalDeg;
-  const valueEnd = startAngle + totalDeg * pct;
-
+  const start = 210; const total = 300;
+  const pct = Math.min(1, score / 20);
+  const zone1 = start + (total * 4) / 20;
+  const zone2 = start + (total * 6) / 20;
+  const end = start + total;
+  const valueEnd = start + total * pct;
   const color = score >= 7 ? "#f44336" : score >= 5 ? "#ff9800" : "#4caf50";
-  const label = score >= 7 ? "HIGH RISK" : score >= 5 ? "MEDIUM RISK" : "LOW RISK";
+  const label = score >= 7 ? "HIGH RISK" : score >= 5 ? "MED RISK" : "LOW RISK";
 
   return (
-    <svg width="160" height="140" viewBox="0 0 160 140">
-      <path d={arcPath(startAngle, greenEnd, R)} fill="none" stroke="#4caf5040" strokeWidth={8} strokeLinecap="round" />
-      <path d={arcPath(greenEnd, amberEnd, R)} fill="none" stroke="#ff980040" strokeWidth={8} strokeLinecap="round" />
-      <path d={arcPath(amberEnd, redEnd, R)} fill="none" stroke="#f4433640" strokeWidth={8} strokeLinecap="round" />
-      {score > 0 && (
-        <path d={arcPath(startAngle, valueEnd, R)} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" />
+    <div className="relative flex justify-center">
+      {score >= 7 && (
+        <>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 rounded-full border-2 border-red-500/40 animate-[news-pulse-ring_1.5s_ease-out_infinite]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 rounded-full border border-red-500/20 animate-[news-pulse-ring_1.5s_ease-out_0.5s_infinite]" />
+        </>
       )}
-      <text x={cx} y={cy - 4} textAnchor="middle" fill={color} fontSize={28} fontWeight="bold">{score}</text>
-      <text x={cx} y={cy + 14} textAnchor="middle" fill={color} fontSize={9} fontWeight="600">{label}</text>
-      <text x={cx} y={cy + 26} textAnchor="middle" fill="#546e7a" fontSize={8}>/ 20</text>
-    </svg>
+      <svg width="180" height="120" viewBox="0 0 180 120">
+        <path d={arc(start, zone1, R)} fill="none" stroke="#4caf5030" strokeWidth={10} strokeLinecap="round" />
+        <path d={arc(zone1, zone2, R)} fill="none" stroke="#ff980030" strokeWidth={10} strokeLinecap="round" />
+        <path d={arc(zone2, end, R)} fill="none" stroke="#f4433630" strokeWidth={10} strokeLinecap="round" />
+        {score > 0 && <path d={arc(start, valueEnd, R)} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" />}
+        <text x={cx} y={cy - 6} textAnchor="middle" fill={color} fontSize={34} fontWeight="900">{score}</text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fill={color} fontSize={9} fontWeight="700">{label}</text>
+        <text x={cx} y={cy + 24} textAnchor="middle" fill="#546e7a" fontSize={8}>/ 20</text>
+        <text x={start === 210 ? 20 : 0} y={108} textAnchor="middle" fill="#4caf50" fontSize={7}>0</text>
+        <text x={162} y={108} textAnchor="middle" fill="#f44336" fontSize={7}>20</text>
+      </svg>
+    </div>
   );
 }
 
 const VITAL_LABELS: Record<string, string> = {
-  respiratory_rate: "Respiratory Rate",
-  spo2: "SpO₂",
-  systolic_bp: "Systolic BP",
-  heart_rate: "Heart Rate",
-  consciousness: "Consciousness",
-  temperature: "Temperature",
+  respiratory_rate: "Resp Rate", spo2: "SpO₂", systolic_bp: "Systolic BP",
+  heart_rate: "Heart Rate", consciousness: "Consciousness", temperature: "Temp",
 };
 
 export default function NEWS2Gauge({ patientId }: Props) {
   const { data: news2, isLoading } = useGetNews2Score(patientId, { query: { refetchInterval: 4000, enabled: !!patientId } });
   const { data: vitals } = useGetCurrentVitals(patientId, { query: { refetchInterval: 3000, enabled: !!patientId } });
 
-  if (isLoading) return <div className="h-64 bg-card border border-border rounded-lg animate-pulse" />;
+  if (isLoading) return <div className="h-48 bg-card border border-border rounded-lg animate-pulse" />;
   if (!news2) return null;
 
-  const componentScores = news2.component_scores as Record<string, number>;
+  const total = Object.values(news2.component_scores as Record<string, number>).reduce((a, b) => a + b, 0);
+  const borderClass = total >= 7 ? "border-red-500/50" : total >= 5 ? "border-amber-500/40" : "border-border";
+
   const vitalsDisplay: Record<string, string> = {
     respiratory_rate: vitals ? `${vitals.respiratory_rate.toFixed(0)}/min` : "--",
     spo2: vitals ? `${vitals.spo2.toFixed(0)}%` : "--",
     systolic_bp: vitals ? `${vitals.systolic_bp.toFixed(0)} mmHg` : "--",
     heart_rate: vitals ? `${vitals.heart_rate.toFixed(0)} bpm` : "--",
-    consciousness: vitals ? (vitals.gcs === 15 ? "Alert" : vitals.gcs >= 13 ? "Confused" : "Unconscious") : "--",
-    temperature: vitals ? `${vitals.temperature.toFixed(1)}°C` : "--",
+    consciousness: vitals ? (vitals.gcs === 15 ? "Alert (A)" : vitals.gcs >= 13 ? "Confused (C)" : "Unresponsive (U)") : "--",
+    temperature: vitals ? `${vitals.temperature.toFixed(1)} °C` : "--",
   };
 
-  const total = Object.values(componentScores).reduce((a, b) => a + b, 0);
-  const bgClass = total >= 7 ? "border-red-500/40" : total >= 5 ? "border-amber-500/40" : "border-border";
-
   return (
-    <div>
-      <h3 className="text-foreground font-semibold text-sm mb-3">NEWS2 SCORE</h3>
-      <div className={`bg-card border ${bgClass} rounded-lg p-4`}>
-        <div className="flex flex-col items-center mb-4">
-          <ArcGauge score={total} />
-        </div>
+    <div className={`bg-card border ${borderClass} rounded-lg overflow-hidden`}>
+      <div className="px-3 py-2 border-b border-border/50">
+        <span className="text-foreground text-xs font-semibold">NEWS2 SCORE</span>
+        {news2.escalation_required && (
+          <span className="ml-2 text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 px-1.5 py-0.5 rounded animate-pulse font-bold">
+            ESCALATION REQUIRED
+          </span>
+        )}
+      </div>
 
-        {/* Component breakdown */}
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left text-muted-foreground py-1.5 font-normal">Parameter</th>
-              <th className="text-center text-muted-foreground py-1.5 font-normal">Value</th>
-              <th className="text-center text-muted-foreground py-1.5 font-normal">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(componentScores).map(([key, score]) => {
-              const numScore = Number(score);
-              const scoreColor = numScore >= 3 ? "text-red-400 font-bold" : numScore >= 2 ? "text-amber-400 font-semibold" : numScore >= 1 ? "text-amber-300" : "text-green-400";
-              return (
-                <tr key={key} className="border-b border-border/50">
-                  <td className="py-1.5 text-foreground">{VITAL_LABELS[key] ?? key}</td>
-                  <td className="py-1.5 text-center text-muted-foreground">{vitalsDisplay[key]}</td>
-                  <td className={`py-1.5 text-center ${scoreColor}`}>{numScore}</td>
-                </tr>
-              );
-            })}
-            <tr className="bg-card/50">
-              <td className="py-1.5 text-foreground font-semibold">TOTAL</td>
-              <td />
-              <td className={`py-1.5 text-center font-bold ${total >= 7 ? "text-red-400" : total >= 5 ? "text-amber-400" : "text-green-400"}`}>{total}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="px-2 pt-2">
+        <SemiArc score={total} />
+      </div>
 
-        <div className={`mt-3 p-2.5 rounded border text-xs ${
-          news2.escalation_required ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-border bg-muted/30 text-muted-foreground"
-        }`}>
-          <div className="font-semibold mb-0.5">Recommended Action</div>
-          <div>{news2.recommended_action}</div>
-          <div className="mt-1 text-muted-foreground">Monitoring: {news2.monitoring_frequency}</div>
-        </div>
+      <table className="w-full text-[10px] px-2">
+        <tbody>
+          {Object.entries(news2.component_scores as Record<string, number>).map(([key, s]) => {
+            const score = Number(s);
+            const scoreColor = score >= 3 ? "text-red-400 font-black" : score >= 2 ? "text-amber-400 font-bold" : score >= 1 ? "text-amber-300 font-semibold" : "text-muted-foreground";
+            return (
+              <tr key={key} className="border-t border-border/30">
+                <td className="py-1 pl-3 text-muted-foreground">{VITAL_LABELS[key] ?? key}</td>
+                <td className="py-1 text-center text-foreground font-mono text-[9px]">{vitalsDisplay[key]}</td>
+                <td className={`py-1 pr-3 text-center ${scoreColor}`}>{score > 0 ? `+${score}` : score}</td>
+              </tr>
+            );
+          })}
+          <tr className="border-t border-border bg-muted/10">
+            <td className="py-1.5 pl-3 font-bold text-foreground">TOTAL</td>
+            <td />
+            <td className={`py-1.5 pr-3 text-center font-black text-sm ${total >= 7 ? "text-red-400" : total >= 5 ? "text-amber-400" : "text-green-400"}`}>{total}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className={`mx-2 mb-2 mt-1 p-2 rounded text-[10px] border ${
+        total >= 7 ? "bg-red-500/10 border-red-500/40 text-red-300"
+        : total >= 5 ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
+        : "bg-green-500/10 border-green-500/30 text-green-400"
+      }`}>
+        {total >= 7 ? "🚨 EMERGENCY — Continuous monitoring, consider ICU transfer"
+          : total >= 5 ? "⚠ Urgent review within 1 hour"
+          : "✓ Monitor every 4–6 hours"}
+        <div className="text-muted-foreground mt-0.5 text-[9px]">{news2.monitoring_frequency}</div>
       </div>
     </div>
   );

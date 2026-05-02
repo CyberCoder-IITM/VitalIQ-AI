@@ -1,0 +1,931 @@
+SYSTEM ROLE: You are a Principal Clinical Software Engineer 
+who has built ICU monitoring systems at Phillips Healthcare 
+and GE Healthcare. VitalIQ Phase 1 is complete — the patient 
+board is live with 8 patients, real-time vitals, NEWS2 
+scoring, ICU probability, and alert counts all working 
+perfectly. 
+
+Phase 2 is the PATIENT DETAIL VIEW and all AI-powered 
+clinical decision support features. When a physician clicks 
+any patient card, they enter a full clinical workup screen. 
+This is where VitalIQ goes from impressive to unreachable.
+
+Zero placeholders. Zero TODOs. Complete working code only.
+Confirm every file with ✓.
+
+═══════════════════════════════════════════════════════════════
+WHAT EXISTS — DO NOT REBUILD
+═══════════════════════════════════════════════════════════════
+
+✓ PatientBoard.jsx — 2×4 grid, working perfectly
+✓ PatientCard.jsx — vitals, NEWS2, ICU%, alert badge
+✓ Vitals engine — 8 patients, deterioration events, SSE
+✓ NEWS2 scoring — mathematically correct
+✓ ICU predictor — sklearn logistic regression
+✓ Drug interactions database — all pairs
+✓ All backend routes — patients, vitals, ai, drugs, alerts
+✓ clinicalStore.js — Zustand store
+✓ Header — CRITICAL LOAD, alert count, AI ACTIVE
+
+═══════════════════════════════════════════════════════════════
+FEATURE 1 — PATIENT DETAIL VIEW SHELL
+═══════════════════════════════════════════════════════════════
+
+In App.jsx:
+
+Add two-view routing system (no react-router needed, 
+use Zustand selectedPatientId):
+
+  VIEW 1: PatientBoard (selectedPatientId === null)
+  VIEW 2: PatientDetail (selectedPatientId !== null)
+
+PatientCard.jsx — make entire card clickable:
+  onClick: setSelectedPatient(patient.id)
+  Cursor: pointer
+  Hover: subtle brightness increase + scale(1.01) transition
+
+Create frontend/src/components/PatientDetail.jsx:
+
+  Full screen layout replacing the board view
+  
+  TOP BAR (48px):
+    "← Back to Board" button — left aligned
+      On click: setSelectedPatient(null)
+      Style: subtle, not prominent — don't distract
+    
+    Center: Patient name | Age/Sex | MRN | Bed | 
+            Chief complaint | Arrival time
+    
+    Right: Acuity badge | Code status badge |
+           Attending physician name |
+           "Time in ED: 2h 34m" live counter
+    
+    Background: slightly different from main bg
+    Border-bottom: 1px solid var(--bg-border)
+  
+  MAIN GRID LAYOUT (below top bar):
+    CSS Grid, 12 columns, gap 16px, padding 16px
+    
+    Left column (col 1-3):
+      NEWSGauge (top)
+      ICUPredictor (below gauge)
+      DrugChecker (below ICU)
+    
+    Center column (col 4-9):
+      VitalsMonitor (top — waveforms, tall)
+      LabResults (below vitals)
+    
+    Right column (col 10-12):
+      AlertTimeline (top)
+      TriageAgent summary for this patient (below)
+    
+    Bottom full width:
+      Tab bar: 
+        "🧠 AI Diagnosis" | "📝 SOAP Note" | 
+        "💊 Drug Safety" | "🔬 Lab Trends"
+      Tab content area (400px height)
+
+═══════════════════════════════════════════════════════════════
+FEATURE 2 — VITALS WAVEFORM MONITOR
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/VitalsMonitor.jsx:
+
+  Header: "📈 REAL-TIME VITALS MONITOR" | 
+          "Updating every 3s" | patient name
+
+  6 waveform charts stacked vertically:
+  Each chart: height 75px, full width
+  Use Recharts ComposedChart with Line
+
+  Chart 1 — HEART RATE:
+    Line color: #f44336 (red — cardiac)
+    Y domain: [30, 180]
+    Normal range shading: ReferenceArea y1=60 y2=100
+      fill="rgba(76,175,80,0.08)"
+    Critical lines: ReferenceLine y=40 stroke="red" 
+                    ReferenceLine y=130 stroke="red"
+    Current value right side: large bold red number
+    Unit: "bpm"
+    If HR < 40 or > 130: value pulses with CSS animation
+
+  Chart 2 — BLOOD PRESSURE:
+    Two lines: systolic (#2196f3 blue) + 
+               diastolic (#90caf9 light blue)
+    Y domain: [40, 240]
+    Normal range shading: 
+      ReferenceArea y1=90 y2=140 (systolic normal)
+    Display: "120/80" format on right
+    Critical: SBP < 90 or > 180
+
+  Chart 3 — RESPIRATORY RATE:
+    Line color: #4caf50 (green)
+    Y domain: [0, 50]
+    Normal range: ReferenceArea y1=12 y2=20
+    Critical lines: y=8 and y=30
+    Unit: "/min"
+
+  Chart 4 — SpO2:
+    Line color: #00bcd4 (cyan)
+    Y domain: [70, 100]
+    CRITICAL zone shading: ReferenceArea y1=70 y2=90
+      fill="rgba(244,67,54,0.15)"
+    Warning zone: ReferenceArea y1=90 y2=94
+      fill="rgba(255,152,0,0.1)"
+    Unit: "%"
+    If SpO2 < 90: entire chart background flashes red
+
+  Chart 5 — TEMPERATURE:
+    Line color: #ff9800 (orange)
+    Y domain: [35, 41]
+    Normal range: ReferenceArea y1=36.1 y2=38.0
+    Fever line: ReferenceLine y=38.0 stroke="orange" 
+                strokeDasharray="4 4" label="Fever"
+    Unit: "°C"
+
+  Chart 6 — GCS:
+    Line color: #9c27b0 (purple)
+    Type: stepAfter (discrete values)
+    Y domain: [3, 15]
+    Critical line: ReferenceLine y=8 stroke="red"
+                   label="Intubation threshold"
+    Ticks: 3, 8, 13, 15
+    If GCS ≤ 8: red background tint on chart
+
+  All charts share:
+    No X-axis labels (too cluttered) — just the line
+    Thin X-axis tick marks for time reference
+    Dot: false (performance)
+    IsAnimationActive: false (real-time performance)
+    ResponsiveContainer width="100%" height={75}
+    
+  All charts update via useVitalsStream hook
+  Smooth: data slides left as new point added right
+  Keep exactly 60 data points (3 minutes)
+
+  TREND ARROWS next to each current value:
+    Compare last 3 readings average vs previous 3
+    ↑ red if worsening | ↓ green if improving | → grey stable
+    Font: 1.4rem
+
+═══════════════════════════════════════════════════════════════
+FEATURE 3 — NEWS2 GAUGE (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/NEWSGauge.jsx:
+
+  Circular SVG gauge, same pattern as AegisView threat gauge
+  
+  Arc: 180° sweep (semicircle, flat side down)
+  Radius: 80px
+  Arc color zones:
+    0-4: #4caf50 (green) — LOW
+    5-6: #ff9800 (amber) — MEDIUM  
+    7+:  #f44336 (red) — HIGH
+  
+  Center of arc:
+    Score number: 3rem, font-weight 900
+    Risk level text: 0.8rem below score
+  
+  When NEWS2 ≥ 7: 
+    Concentric pulsing rings outside arc
+    CSS keyframes: scale 1→1.1→1, opacity 1→0
+    Color: rgba(244, 67, 54, 0.4)
+  
+  Below gauge — component breakdown table:
+    Columns: Vital | Value | Score | Status
+    6 rows (one per NEWS2 component)
+    Score cells: 
+      0 = grey "0"
+      1 = amber "+1" 
+      2 = amber "+2"
+      3 = red "+3" bold
+    Total row: bold, larger font, colored by risk
+  
+  Recommended action box:
+    Green box: "Monitor every 4-6 hours" (NEWS 0-4)
+    Amber box: "⚠ Urgent review within 1 hour" (NEWS 5-6)
+    Red box: "🚨 EMERGENCY — Continuous monitoring, 
+              consider ICU transfer" (NEWS 7+)
+  
+  Escalation badge if escalation_required:
+    Flashing red badge: "ESCALATION REQUIRED"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 4 — AI DIFFERENTIAL DIAGNOSIS (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/DiagnosisPanel.jsx:
+
+  Rendered in the "🧠 AI Diagnosis" tab of PatientDetail
+  
+  HEADER ROW:
+    "🧠 AI DIFFERENTIAL DIAGNOSIS"
+    Right side: "Powered by Gemini AI" subtle label |
+                "Generated: {time}" | 
+                "🔄 Regenerate" button
+  
+  Loading state (while Gemini processes):
+    Skeleton loader — 3 pulsing grey rectangles
+    Text: "AI analyzing patient data..."
+    Animated: rotating medical cross icon
+    Sub-text: "Reviewing vitals, labs, medications, 
+               history..."
+  
+  DISPOSITION BANNER (most prominent, top):
+    Full-width colored banner based on recommendation:
+    DISCHARGE: green — "✓ DISCHARGE — Patient stable"
+    OBSERVE: blue — "👁 OBSERVE — Monitor 4-6 hours"
+    ADMIT_FLOOR: amber — "🏥 ADMIT TO FLOOR"
+    ADMIT_ICU: red — "🚨 ADMIT TO ICU — Critical"
+    OR: dark red flashing — "⚡ OR EMERGENT — Activate team"
+    
+    If time_sensitive: add flashing sub-banner below:
+    "⚡ TIME CRITICAL: {time_sensitivity_reason}"
+
+  IMMEDIATE ACTIONS box (below disposition):
+    Blue bordered box
+    Ordered list: each action as a numbered item
+    Checkboxes (UI only — no backend):
+      Physician can check off completed actions
+      Checked items get strikethrough
+
+  DIAGNOSES LIST:
+    3-5 diagnosis cards, sorted by rank
+    
+    Each card:
+      LEFT: Large rank number "#1" in circle
+             Colored by probability:
+               HIGH: red circle | MED: amber | LOW: grey
+      
+      CENTER:
+        Diagnosis name: 1.1rem bold
+        ICD-10 code: small pill badge "#I21.0"
+        Probability bar: thin full-width bar
+          Filled portion = probability_percent
+          Color matches rank circle
+      
+      RIGHT:
+        Probability badge: "HIGH 78%"
+      
+      EXPANDED (click card to toggle):
+        4 sections in 2×2 grid:
+        
+        "✓ Supporting Evidence" (green):
+          Bullet list of specific findings from data
+        
+        "✗ Against" (red):
+          Bullet list of findings arguing against
+        
+        "🔬 Immediate Workup" (blue):
+          Ordered list — labs, imaging, consults
+        
+        "⚠ Red Flags" (amber):
+          Warning signs to watch for
+    
+    First card always starts expanded.
+    Others collapsed. One open at a time.
+
+  BOTTOM: "AI Disclaimer" in small muted text:
+    "AI-generated differential for clinical reference only.
+     Always apply clinical judgment. Not FDA approved."
+
+═══════════════════════════════════════════════════════════════
+FEATURE 5 — SOAP NOTE WRITER (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/SOAPNoteWriter.jsx:
+
+  Rendered in "📝 SOAP Note" tab
+  
+  HEADER:
+    "📝 AI CLINICAL NOTE GENERATOR"
+    MDM Level badge (when generated): LOW/MODERATE/HIGH
+    Word count: "{n} words"
+  
+  PRE-GENERATION STATE:
+    Large centered area with:
+    Stethoscope icon (SVG, not emoji)
+    "Generate AI Clinical Note" as H2
+    Sub: "AI will draft a complete SOAP note using 
+          current vitals, labs, medications, and 
+          differential diagnosis"
+    Stats preview:
+      "Will include: {vital_count} vital readings | 
+       {lab_count} lab results | {dx_count} diagnoses"
+    Large blue "✨ Generate SOAP Note" button
+    Estimated time: "~3-5 seconds"
+  
+  GENERATION STATE:
+    Progress bar animating
+    Status messages cycling every second:
+      "Reviewing vital signs..."
+      "Analyzing lab results..."  
+      "Incorporating differential diagnosis..."
+      "Drafting clinical documentation..."
+      "Applying medical formatting..."
+  
+  POST-GENERATION STATE:
+    4 SOAP section cards:
+    
+    Each section card:
+      Colored left border + header:
+        S: purple "#9c27b0"
+        O: blue "#2196f3"
+        A: amber "#ff9800"
+        P: green "#4caf50"
+      
+      Section title + letter in header
+      
+      Content in EDITABLE textarea:
+        font-family: 'Georgia', serif (medical feel)
+        font-size: 0.85rem
+        line-height: 1.8
+        background: transparent
+        border: none → border on focus
+        resize: vertical
+        min-height: 100px
+      
+      Character count bottom-right of each section
+    
+    ATTESTATION section (below 4 cards):
+      Grey background, smaller font
+      "Electronically signed by: Dr. {attending_name}"
+      "Date/Time: {timestamp}"
+      "I personally evaluated this patient and reviewed 
+       the above documentation. I agree with the 
+       assessment and plan."
+    
+    ACTION BUTTONS ROW:
+      "📋 Copy Full Note" — copies formatted text
+        Format: "S:\n{text}\n\nO:\n{text}\n\nA:\n{text}\n\nP:\n{text}"
+      "💾 Save to Chart" — success toast "✓ Saved to EHR"
+      "📧 Send to Consultant" — copies referral format
+      "🔄 Regenerate" — re-calls API
+
+═══════════════════════════════════════════════════════════════
+FEATURE 6 — DRUG INTERACTION CHECKER (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/DrugChecker.jsx:
+
+  Rendered in left column of PatientDetail AND 
+  in "💊 Drug Safety" tab for full detail
+  
+  LEFT COLUMN COMPACT VERSION:
+    "💊 DRUG SAFETY" header
+    
+    Current medications list:
+      Each: pill icon | Drug name bold | Dose small
+      Right side: interaction warning badge if applicable
+        Red "!" for MAJOR | Amber "!" for MODERATE
+    
+    Interaction count summary:
+      "⚠ 2 interactions detected" in amber
+      OR "✓ No interactions" in green
+    
+    Click "View Details →" → switches to Drug Safety tab
+  
+  FULL TAB VERSION:
+    CURRENT MEDICATIONS section:
+      Table: Drug | Dose | Route | Frequency | Started | Status
+      Status: green "OK" or red/amber interaction badge
+      Interaction badge: click to jump to that interaction
+    
+    DETECTED INTERACTIONS section:
+      Each interaction card:
+        Header: severity badge + drug pair
+          "MAJOR: Warfarin ↔ Ibuprofen"
+          MAJOR: red bg | MODERATE: amber | MINOR: green
+        
+        Body (always visible):
+          ⚡ Effect: "{effect description}"
+        
+        Expandable details:
+          🔬 Mechanism: "{mechanism}"
+          📋 Recommendation: blue box with text
+          👁 Monitor: "{what to monitor}"
+    
+    CHECK NEW DRUG section:
+      Input: large text field
+      Placeholder: "Type medication name to check..."
+      "Check Interaction" button
+      
+      Results appear below immediately:
+        If interactions found: 
+          Same card format as above
+          "Adding {drug} would cause {n} new interaction(s)"
+        If clean:
+          Green "✓ No interactions with current medications"
+      
+      Common drug suggestions as chips below input:
+        "Aspirin" | "Heparin" | "Morphine" | 
+        "Metformin" | "Vancomycin" | "Amiodarone"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 7 — LAB RESULTS (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/LabResults.jsx:
+
+  In center column of PatientDetail (below vitals)
+  Also in "🔬 Lab Trends" tab for full view
+  
+  COMPACT VERSION (in center column):
+    Horizontal scrollable row of critical labs only:
+    Show: Troponin, WBC, Creatinine, K+, Glucose, INR
+    Each: test name | value | status color | trend arrow
+    
+  FULL TAB VERSION:
+    
+    Tab bar within the component:
+      METABOLIC | CBC | CARDIAC | COAG | ABG
+    
+    Each panel — table format:
+      Columns: Test | Result | Unit | Ref Range | Status | Δ Delta
+      
+      Status column:
+        "NORMAL" — white text
+        "LOW ↓" — blue text  
+        "HIGH ↑" — amber text
+        "CRIT LOW ↓↓" — red bold + red row background tint
+        "CRIT HIGH ↑↑" — red bold + red row background tint
+      
+      Delta column:
+        ↑ {value} red if worsening direction
+        ↓ {value} green if improving direction
+        Based on clinical context (e.g. K+ rising = bad if 
+        already high, good if low)
+      
+      Critical value rows:
+        Entire row: rgba(244,67,54,0.1) background
+        Left border: 3px solid #f44336
+        "!" icon in status column
+    
+    TREND CHARTS tab ("Lab Trends"):
+      For each abnormal lab:
+        Mini Recharts LineChart showing last 5 values
+        Reference lines for normal range
+        "Trending toward normal" or "Worsening trend" label
+    
+    Auto-generates realistic lab values per patient:
+      James Wilson (chest pain): 
+        Troponin HIGH (0.8 ng/mL — normal <0.04)
+        ECG changes simulated in notes
+      
+      Maria Santos (SOB, pregnant):
+        WBC HIGH (14.2), D-dimer HIGH
+        
+      Robert Chen (altered MS):
+        Na LOW (128 mEq/L — hyponatremia)
+        BUN HIGH, Creatinine elevated
+        
+      Michael Brown (syncope, HR 44):
+        Digoxin level HIGH (2.8 ng/mL — toxic range)
+        K+ LOW (2.9) — explains digoxin toxicity
+        
+      Emily Davis (seizure):
+        Levetiracetam level LOW (subtherapeutic)
+        
+      Nancy White (fall, CHF):
+        BNP CRITICAL HIGH (2400 pg/mL)
+        INR HIGH (3.8) — supratherapeutic warfarin
+        K+ LOW (3.1) with digoxin on board = DANGEROUS
+    
+    CRITICAL VALUE ALERTS:
+      Any CRITICAL lab automatically generates ClinicalAlert
+      Alert type: "CRITICAL_LAB"
+      Severity: "CRITICAL"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 8 — TRIAGE AGENT PANEL (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/TriageAgent.jsx:
+
+  Full panel version (accessible from header button 
+  "🤖 TRIAGE" that opens a right-side drawer):
+  
+  DRAWER (position fixed, right side, 420px wide):
+    Slides in from right: transform translateX(420px) → 0
+    Background: var(--bg-card)
+    Border-left: 2px solid var(--clinical-blue)
+    Full height, scrollable
+    Close button top-right: "✕"
+  
+  HEADER:
+    "🤖 AI TRIAGE AGENT"
+    Status: "● ANALYZING" pulsing blue dot
+    "Cycle: #{n}" | "Last: {n}s ago" | 
+    "Next analysis in: {countdown}s" live countdown
+  
+  DEPARTMENT STATUS (large, top):
+    Pill badge — large:
+      CONTROLLED: green #4caf50
+      BUSY: amber #ff9800
+      CRITICAL_LOAD: red #f44336 + pulse
+    
+    Cycle summary sentence below in italic
+  
+  PHYSICIAN FOCUS (red bordered box):
+    "⚠ IMMEDIATE ATTENTION REQUIRED"
+    Patient name + bed: 1.2rem bold
+    Specific concern: agent's reason text
+    Recommended action: bold blue
+  
+  PRIORITY RANKING (full list):
+    Ranked list 1-8 of all patients:
+    
+    Each row:
+      Rank number (colored: 1=red, 2=orange, 3=amber, 4+=grey)
+      Patient name + bed
+      Urgency reason (short)
+      "Act within: Xmin" badge
+        < 5min: red | 5-15min: amber | > 15min: green
+      
+    Click any patient row: 
+      Close drawer + navigate to that patient detail
+  
+  CRITICAL ACTIONS list:
+    "⚡ ACTIONS NEEDED NOW" section
+    Each action: 
+      Patient name | Action | Rationale
+      "TIME CRITICAL" red badge if applicable
+  
+  STABLE PATIENTS section:
+    Green background row
+    "✓ Stable — Low Priority:"
+    Patient names as pills
+  
+  CYCLE HISTORY:
+    Last 5 cycles as collapsed accordion items
+    Each: timestamp | department status | top priority patient
+  
+  In PatientDetail right column:
+    Show compact version — just the priority rank of 
+    this specific patient + physician focus if this 
+    patient is the focus:
+    "Priority Rank: #2 of 8"
+    "Urgency: {reason}"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 9 — ALERT TIMELINE (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/AlertTimeline.jsx:
+
+  In right column of PatientDetail (patient-specific)
+  In header clicking "27 ALERTS" opens full drawer
+    (similar to TriageAgent drawer, left side this time)
+  
+  PATIENT-SPECIFIC VERSION (right column):
+    "🔔 ALERTS" header | count badge for this patient
+    
+    Filter tabs: ALL | CRITICAL | DRUG | LAB | VITALS
+    
+    Last 5 alerts for this patient:
+      Each: severity dot | type badge | time ago | title
+      Expandable: body text + acknowledge button
+    
+    "View All Alerts →" opens the full drawer
+  
+  FULL DRAWER VERSION (all patients):
+    Grouped by patient name (collapsible groups)
+    Each group header: patient name | alert count badge
+    
+    Each alert:
+      Left border color by severity
+      Type badge: color coded
+        DETERIORATION: red
+        DRUG_INTERACTION: purple
+        CRITICAL_LAB: orange
+        NEWS_ESCALATION: red
+        AI_DIAGNOSIS: blue
+        ICU_THRESHOLD: dark red
+      
+      Time: "2 min ago" | Patient | Bed
+      Title: bold
+      Body: expandable
+      
+      Acknowledge button:
+        Unacknowledged: "✓ Acknowledge" blue button
+        Acknowledged: grey "✓ Acknowledged" + time
+      
+      "Acknowledge All" button at top of drawer
+    
+    New alerts SSE stream: 
+      New alert slides in from top
+      CRITICAL: brief red flash of entire drawer background
+      Browser notification (request permission on load):
+        "VitalIQ Alert: {title}" for CRITICAL severity
+
+═══════════════════════════════════════════════════════════════
+FEATURE 10 — ICU PREDICTOR PANEL (ENHANCED)
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/ICUPredictor.jsx:
+
+  In left column of PatientDetail (below NEWSGauge)
+  
+  "🏥 ICU ADMISSION RISK" header
+  
+  Large percentage: "{n}%" 
+    Font-size: 2.5rem, font-weight: 900
+    Color: matches risk category
+    
+    < 25%: #4caf50 green
+    25-50%: #ff9800 amber
+    50-75%: #f44336 red
+    > 75%: #b71c1c dark red + pulse animation
+  
+  Risk category badge below percentage:
+    "VERY HIGH RISK" | "HIGH RISK" | etc.
+  
+  Gradient probability bar:
+    Full width, height 12px, border-radius 6px
+    Gradient: #4caf50 0% → #ff9800 50% → #f44336 100%
+    Marker (white circle with shadow) at probability %
+    Zone labels below: LOW | MOD | HIGH | VERY HIGH
+  
+  Key risk factors:
+    "Driving factors:" label
+    3 factor tags:
+      Each: factor name + value
+      e.g. "NEWS2: 14" (red) | "Age: 78" | "SpO2: 82%"
+  
+  Trend sparkline:
+    Small Recharts line (height 50px, no axes)
+    Last 10 ICU probability readings
+    Trend label: 
+      "▲ Risk increasing" (red) or 
+      "▼ Risk decreasing" (green) or
+      "→ Risk stable" (grey)
+  
+  Recommendation box:
+    < 25%: green "Continue monitoring per protocol"
+    25-50%: amber "⚠ Reassess in 30 minutes"
+    50-75%: orange "🚨 Notify attending — ICU consult advised"
+    > 75%: red "🚨 IMMEDIATE ICU CONSULT REQUIRED"
+
+═══════════════════════════════════════════════════════════════
+FEATURE 11 — PATIENT HEADER BAR
+═══════════════════════════════════════════════════════════════
+
+Create frontend/src/components/PatientHeader.jsx:
+
+  48px bar at top of PatientDetail (below main header)
+  Background: #1a2235
+  Border-bottom: 2px solid patient's acuity color
+  
+  Left section:
+    "← All Patients" button with back arrow
+    Divider |
+    Patient name: bold 1rem
+    Age/Sex: "67M" muted
+    MRN: small monospace "MRN-00847"
+  
+  Center section:
+    Chief complaint in quotes: '"Chest pain"'
+    Arrival badge: "Arrived: 2h 34m ago" live timer
+    Bed badge: "ED-Bay-4"
+  
+  Right section:
+    Acuity badge (large): "ESI 2" colored
+    Code status badge: 
+      FULL: green "FULL CODE"
+      DNR: red "DNR"
+      DNI: amber "DNI"
+    Attending: "Dr. {name}" with stethoscope icon
+    
+  Below main bar (collapsible, starts collapsed):
+    Allergies: red pills for each allergy
+      "⚠ Allergies: Penicillin, Sulfa"
+    Active conditions: grey pills
+    Click to expand/collapse
+
+═══════════════════════════════════════════════════════════════
+FEATURE 12 — CLINICAL QUERY ENGINE
+═══════════════════════════════════════════════════════════════
+
+Add to PatientDetail.jsx bottom section:
+
+  "💬 Ask AI About This Patient" input bar
+  
+  Fixed at bottom of PatientDetail view:
+    position: sticky, bottom: 0
+    background: var(--bg-secondary)
+    border-top: 1px solid var(--bg-border)
+    padding: 12px 16px
+    display: flex, gap: 12px
+  
+  Input field:
+    Placeholder: "Ask anything about this patient... 
+                  e.g. 'What's causing the low SpO2?'"
+    Full width, clinical blue focus border
+    Press Enter to submit
+  
+  Suggestion chips (above input, scroll horizontally):
+    "What's causing the tachycardia?"
+    "Is this patient safe for discharge?"
+    "What's the most dangerous drug interaction?"
+    "Explain the NEWS2 score"
+    "Should I be worried about the troponin?"
+    "What's the biggest risk right now?"
+  
+  AI Response appears above input as a chat bubble:
+    Max 3 previous Q&A pairs shown
+    Each: Question (right aligned, blue bg) |
+          Answer (left aligned, dark bg, cyan text)
+    Typewriter effect on answer reveal
+    
+    Below answer: 
+      "Based on: {n} vitals readings, {n} lab results"
+      "⚠ AI reference only — apply clinical judgment"
+  
+  Backend route already exists: POST /api/ai/query
+  Enrich context with: current vitals, labs, 
+  differential, NEWS2, drug interactions, alerts
+
+═══════════════════════════════════════════════════════════════
+FEATURE 13 — ENHANCED PATIENT BOARD ADDITIONS
+═══════════════════════════════════════════════════════════════
+
+Update PatientBoard.jsx and PatientCard.jsx:
+
+BOARD HEADER additions:
+  Below "ACTIVE PATIENTS" title row, add summary bar:
+  
+  "NEWS2 ≥7: {n} patients" — red badge
+  "NEWS2 5-6: {n} patients" — amber badge  
+  "ICU Risk >75%: {n} patients" — dark red badge
+  "Pending Actions: {n}" — blue badge
+  "Avg ED Time: {n}h {n}m" — grey
+  
+  Right side: Sort dropdown:
+    "Sort by: NEWS2 ↓ | ICU Risk | Arrival Time | Name"
+  
+  Board re-sorts cards based on selection.
+  Default: NEWS2 descending (most critical first)
+
+PatientCard.jsx additions:
+
+  TREND INDICATOR:
+    Small arrow in top-right area of vitals section
+    Shows overall patient trajectory:
+      "↑ DETERIORATING" — red upward arrow
+      "↓ IMPROVING" — green downward arrow
+      "→ STABLE" — grey right arrow
+    Based on NEWS2 change over last 5 minutes
+  
+  TIME IN ED:
+    Small badge below chief complaint:
+    "⏱ 2h 34m" — color coded:
+      < 2h: green | 2-4h: amber | > 4h: red
+  
+  MINI ALERT STRIP:
+    If patient has CRITICAL or URGENT alerts:
+    Thin strip below vitals grid:
+    "⚠ DRUG INTERACTION: Warfarin ↔ Ibuprofen" 
+    Scrolls if multiple (CSS marquee effect)
+    Red background, white text, small font
+
+═══════════════════════════════════════════════════════════════
+FEATURE 14 — KEYBOARD SHORTCUTS + POWER USER MODE
+═══════════════════════════════════════════════════════════════
+
+Add to App.jsx useEffect:
+
+Keyboard shortcuts:
+  "B" → go back to board (if in patient detail)
+  "1"-"8" → navigate to patient 1-8 directly
+  "A" → open/close alerts drawer
+  "T" → open/close triage agent drawer
+  "D" → switch to Diagnosis tab
+  "N" → switch to SOAP Note tab
+  "L" → switch to Lab Trends tab
+  "/" → focus clinical query input
+  "Escape" → close any open drawer
+
+Add small "?" button in header:
+  On click: shows keyboard shortcut legend modal
+  Grid of shortcuts with descriptions
+  Dark overlay, centered modal
+  "✕ Close" or Escape to dismiss
+
+═══════════════════════════════════════════════════════════════
+ZUSTAND STORE UPDATES
+═══════════════════════════════════════════════════════════════
+
+Add to clinicalStore.js:
+
+  New state:
+    activeTab: "diagnosis"|"soap"|"drugs"|"labs"
+    alertsDrawerOpen: bool
+    triageDrawerOpen: bool
+    queryHistory: [{question, answer, timestamp}]  
+                  (per patient, max 3)
+    sortMode: "news2"|"icu"|"arrival"|"name"
+    patientSortedIds: string[]
+    
+  New actions:
+    setActiveTab(tab)
+    toggleAlertsDrawer()
+    toggleTriageDrawer()
+    addQueryResponse(patient_id, question, answer)
+    setSortMode(mode)
+    recomputeSort()
+
+═══════════════════════════════════════════════════════════════
+VISUAL POLISH — CLINICAL AESTHETIC
+═══════════════════════════════════════════════════════════════
+
+Add to index.css:
+
+Import Google Fonts:
+  @import url('https://fonts.googleapis.com/css2?
+    family=Inter:wght@400;500;600;700;800&
+    family=JetBrains+Mono:wght@400;500&
+    family=Crimson+Pro:ital,wght@0,400;1,400&
+    display=swap');
+
+Body: font-family: 'Inter', sans-serif
+Vitals values: font-family: 'JetBrains Mono', monospace
+SOAP note content: font-family: 'Crimson Pro', serif
+
+Clinical-specific animations:
+  
+  @keyframes cardiac-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  (for critical HR values)
+  
+  @keyframes spo2-alarm {
+    0%, 100% { background: transparent; }
+    50% { background: rgba(244, 67, 54, 0.1); }
+  }
+  (for critical SpO2 chart)
+  
+  @keyframes news-critical {
+    0% { box-shadow: 0 0 0 0 rgba(244,67,54,0.7); }
+    70% { box-shadow: 0 0 0 12px rgba(244,67,54,0); }
+    100% { box-shadow: 0 0 0 0 rgba(244,67,54,0); }
+  }
+  (for NEWS2 ≥ 7 patient cards and gauge)
+  
+  @keyframes drawer-slide-right {
+    from { transform: translateX(420px); }
+    to { transform: translateX(0); }
+  }
+  
+  @keyframes drawer-slide-left {
+    from { transform: translateX(-420px); }
+    to { transform: translateX(0); }
+  }
+
+Scrollbars: same thin dark style as AegisView
+
+═══════════════════════════════════════════════════════════════
+QUALITY GATES
+═══════════════════════════════════════════════════════════════
+
+1. Back button always visible in patient detail — never trapped
+2. VitalsMonitor must update every 3s — no perceptible lag
+3. Diagnosis panel must show loading state — never blank
+4. SOAP note editable fields must not lose content on re-render
+5. Drug checker new drug input must clear after submission
+6. Lab critical values must be visually unmissable
+7. Triage drawer must show current patient highlighted
+8. Alert acknowledge must be instant (optimistic update)
+9. Clinical query must not submit empty string
+10. Keyboard shortcuts must not trigger in text inputs
+11. Sort mode must persist across patient navigation
+12. All drawers must be closeable by clicking backdrop
+13. NEWS2 gauge score must exactly match PatientCard score
+14. ICU probability must update within 1 cycle of vitals change
+15. Medical disclaimer visible in PatientDetail header
+
+═══════════════════════════════════════════════════════════════
+EXECUTE. File generation order:
+1.  src/store/clinicalStore.js (updated)
+2.  src/components/PatientHeader.jsx
+3.  src/components/PatientDetail.jsx
+4.  src/components/VitalsMonitor.jsx
+5.  src/components/NEWSGauge.jsx
+6.  src/components/ICUPredictor.jsx
+7.  src/components/DiagnosisPanel.jsx
+8.  src/components/SOAPNoteWriter.jsx
+9.  src/components/DrugChecker.jsx
+10. src/components/LabResults.jsx
+11. src/components/TriageAgent.jsx
+12. src/components/AlertTimeline.jsx
+13. src/components/PatientBoard.jsx (updated)
+14. src/components/PatientCard.jsx (updated)
+15. src/App.jsx (updated with routing + shortcuts)
+16. src/index.css (clinical fonts + animations)
+
+Confirm each file with ✓.
+Do not stop until all 16 files are complete.
+Do not touch any backend files.
+Do not rebuild anything already working.
+═══════════════════════════════════════════════════════════════

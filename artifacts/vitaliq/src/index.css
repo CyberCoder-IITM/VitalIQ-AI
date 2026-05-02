@@ -93,4 +93,45 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 }
+
+@keyframes cardiac-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes spo2-alarm {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(244,67,54,0.12); }
+}
+@keyframes news-critical {
+  0% { box-shadow: 0 0 0 0 rgba(244,67,54,0.7); }
+  70% { box-shadow: 0 0 0 14px rgba(244,67,54,0); }
+  100% { box-shadow: 0 0 0 0 rgba(244,67,54,0); }
+}
+@keyframes drawer-slide-right {
+  from { transform: translateX(440px); }
+  to   { transform: translateX(0); }
+}
+@keyframes drawer-slide-left {
+  from { transform: translateX(-440px); }
+  to   { transform: translateX(0); }
+}
+@keyframes news-pulse-ring {
+  0%   { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+@keyframes typewriter-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.animate-cardiac-pulse { animation: cardiac-pulse 0.8s ease-in-out infinite; }
+.animate-spo2-alarm    { animation: spo2-alarm 1.2s ease-in-out infinite; }
+.animate-news-critical { animation: news-critical 1.5s ease-out infinite; }
+.animate-drawer-right  { animation: drawer-slide-right 0.22s ease-out; }
+.animate-drawer-left   { animation: drawer-slide-left  0.22s ease-out; }
+.animate-cursor        { animation: typewriter-cursor 1s step-end infinite; }
