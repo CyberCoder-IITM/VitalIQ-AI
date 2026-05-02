@@ -1,0 +1,1072 @@
+SYSTEM ROLE: You are a Principal Engineer who has built 
+clinical decision support systems at Epic Systems, Google 
+Health, and Johns Hopkins Hospital's technology division. 
+You have deep knowledge of HL7 FHIR standards, clinical 
+workflows, and medical AI safety requirements. You are 
+building VitalIQ — a real-time AI Clinical Co-Pilot for 
+emergency department and ICU physicians. This is a hackathon 
+build on Replit. Every decision must be modular, deployable, 
+and production-credible. Zero placeholders. Zero TODOs. 
+Complete working code only. Confirm every file with ✓.
+
+═══════════════════════════════════════════════════════════════
+THE PRODUCT
+═══════════════════════════════════════════════════════════════
+
+VitalIQ: A real-time patient monitoring and AI clinical 
+decision support dashboard for Emergency Department physicians.
+
+Core value proposition:
+"VitalIQ detects patient deterioration 6 minutes earlier 
+than manual monitoring, auto-generates SOAP notes, flags 
+drug interactions in real-time, and predicts ICU admission 
+probability — reducing physician cognitive load by 40%."
+
+Target buyers: Hospital systems, ED departments, ICUs,
+Digital health startups, Insurance clinical teams.
+
+Target interviewers: Epic, Oracle Health, Google Health,
+Microsoft Azure Health, Palantir, Color Health, Tempus,
+Flatiron Health, Olive AI, any HealthTech company.
+
+═══════════════════════════════════════════════════════════════
+EXACT FILE STRUCTURE — GENERATE ALL FILES
+═══════════════════════════════════════════════════════════════
+
+vitaliq/
+├── backend/
+│   ├── main.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── vitals_engine.py      # Synthetic vitals generator
+│   │   ├── deterioration.py      # Early warning score (NEWS2)
+│   │   ├── fhir_models.py        # FHIR R4 compatible data models
+│   │   └── drug_interactions.py  # Drug interaction checker
+│   ├── ai/
+│   │   ├── __init__.py
+│   │   ├── diagnosis_engine.py   # Differential diagnosis AI
+│   │   ├── note_generator.py     # SOAP note auto-drafter
+│   │   ├── icu_predictor.py      # ICU admission ML predictor
+│   │   └── triage_agent.py       # Autonomous triage AI agent
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes_patients.py
+│   │   ├── routes_vitals.py
+│   │   ├── routes_ai.py
+│   │   ├── routes_drugs.py
+│   │   └── routes_alerts.py
+│   ├── models/
+│   │   └── schemas.py
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── src/
+│   │   ├── main.jsx
+│   │   ├── App.jsx
+│   │   ├── components/
+│   │   │   ├── PatientBoard.jsx      # Multi-patient grid view
+│   │   │   ├── PatientCard.jsx       # Single patient summary card
+│   │   │   ├── VitalsMonitor.jsx     # Real-time vitals waveforms
+│   │   │   ├── NEWSGauge.jsx         # Early warning score gauge
+│   │   │   ├── DiagnosisPanel.jsx    # AI differential diagnosis
+│   │   │   ├── DrugChecker.jsx       # Drug interaction checker
+│   │   │   ├── SOAPNoteWriter.jsx    # AI note generation
+│   │   │   ├── ICUPredictor.jsx      # Admission probability
+│   │   │   ├── AlertTimeline.jsx     # Clinical alerts feed
+│   │   │   ├── TriageAgent.jsx       # Autonomous AI agent panel
+│   │   │   ├── LabResults.jsx        # Lab values with flags
+│   │   │   └── PatientHeader.jsx     # Patient demographics bar
+│   │   ├── hooks/
+│   │   │   ├── useVitalsStream.js    # SSE vitals subscription
+│   │   │   └── usePatient.js        # Patient data hook
+│   │   ├── store/
+│   │   │   └── clinicalStore.js      # Zustand clinical state
+│   │   └── utils/
+│   │       ├── clinicalRanges.js     # Normal ranges per vital
+│   │       └── newsScore.js          # NEWS2 calculator util
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+│
+├── .replit
+└── README.md
+
+═══════════════════════════════════════════════════════════════
+BACKEND SPEC
+═══════════════════════════════════════════════════════════════
+
+── fhir_models.py ──────────────────────────────────────────
+Implement FHIR R4 compatible Pydantic models:
+
+Patient(
+  id: str,                    (UUID)
+  mrn: str,                   (Medical Record Number e.g. "MRN-00847")
+  name: str,
+  age: int,
+  sex: "M"|"F",
+  dob: str,
+  chief_complaint: str,
+  arrival_time: ISO8601,
+  bed: str,                   (e.g. "ED-Bay-4")
+  attending: str,             (physician name)
+  code_status: "FULL"|"DNR"|"DNI",
+  allergies: list[str],
+  current_medications: list[Medication],
+  active_conditions: list[str],
+  acuity: 1|2|3|4|5           (ESI triage level)
+)
+
+Medication(
+  name: str,
+  dose: str,
+  route: str,
+  frequency: str,
+  started: ISO8601
+)
+
+VitalSigns(
+  patient_id: str,
+  timestamp: ISO8601,
+  heart_rate: float,          (bpm)
+  systolic_bp: float,         (mmHg)
+  diastolic_bp: float,        (mmHg)
+  respiratory_rate: float,    (breaths/min)
+  spo2: float,                (% oxygen saturation)
+  temperature: float,         (°C)
+  gcs: int,                   (Glasgow Coma Scale 3-15)
+  etco2: float | None,        (end-tidal CO2, mmHg)
+  pain_score: int             (0-10)
+)
+
+LabResult(
+  patient_id: str,
+  timestamp: ISO8601,
+  test_name: str,
+  value: float,
+  unit: str,
+  reference_low: float,
+  reference_high: float,
+  status: "NORMAL"|"LOW"|"HIGH"|"CRITICAL_LOW"|"CRITICAL_HIGH",
+  delta: float | None         (change from last result)
+)
+
+ClinicalAlert(
+  alert_id: str,
+  patient_id: str,
+  timestamp: ISO8601,
+  alert_type: "DETERIORATION"|"DRUG_INTERACTION"|
+              "CRITICAL_LAB"|"NEWS_ESCALATION"|
+              "AI_DIAGNOSIS"|"ICU_THRESHOLD",
+  severity: "INFO"|"WARN"|"URGENT"|"CRITICAL",
+  title: str,
+  body: str,
+  acknowledged: bool,
+  news_score: int | None
+)
+
+── vitals_engine.py ─────────────────────────────────────────
+Synthetic patient vitals generator. Simulates 8 patients
+simultaneously with realistic physiological patterns.
+
+Create 8 synthetic patients with varied profiles:
+  Patient 1: "James Wilson", 67M, Chief complaint: Chest pain
+    Baseline: HR 88, BP 145/92, RR 18, SpO2 97%, Temp 37.1
+    Active conditions: HTN, Type 2 DM, CAD
+    Medications: Metoprolol 50mg, Lisinopril 10mg, Aspirin 81mg
+    Acuity: 2 (High)
+
+  Patient 2: "Maria Santos", 34F, Chief complaint: Shortness of breath
+    Baseline: HR 112, BP 98/64, RR 24, SpO2 91%, Temp 38.8
+    Active conditions: Asthma, Pregnancy (28 weeks)
+    Medications: Albuterol PRN, Prenatal vitamins
+    Acuity: 2 (High)
+
+  Patient 3: "Robert Chen", 78M, Chief complaint: Altered mental status
+    Baseline: HR 96, BP 168/98, RR 20, SpO2 94%, Temp 38.2
+    Active conditions: Dementia, HTN, AFib
+    Medications: Warfarin 5mg, Amlodipine 10mg, Donepezil 10mg
+    Acuity: 1 (Immediate)
+
+  Patient 4: "Sarah Johnson", 45F, Chief complaint: Abdominal pain
+    Baseline: HR 102, BP 118/76, RR 16, SpO2 99%, Temp 38.9
+    Active conditions: None significant
+    Medications: Ibuprofen PRN
+    Acuity: 3 (Moderate)
+
+  Patient 5: "Michael Brown", 52M, Chief complaint: Syncope
+    Baseline: HR 44, BP 88/52, RR 14, SpO2 96%, Temp 36.8
+    Active conditions: Heart block (known), COPD
+    Medications: Digoxin 0.125mg, Tiotropium inhaler
+    Acuity: 2 (High)
+
+  Patient 6: "Emily Davis", 28F, Chief complaint: Seizure
+    Baseline: HR 118, BP 142/88, RR 22, SpO2 95%, Temp 37.4
+    Active conditions: Epilepsy
+    Medications: Levetiracetam 500mg BID
+    Acuity: 1 (Immediate)
+
+  Patient 7: "Thomas Lee", 61M, Chief complaint: Back pain
+    Baseline: HR 76, BP 132/84, RR 14, SpO2 98%, Temp 37.0
+    Active conditions: CKD Stage 3, HTN
+    Medications: Amlodipine 5mg, Furosemide 40mg
+    Acuity: 4 (Low)
+
+  Patient 8: "Nancy White", 83F, Chief complaint: Fall
+    Baseline: HR 88, BP 156/94, RR 18, SpO2 93%, Temp 36.6
+    Active conditions: Osteoporosis, AFib, CHF
+    Medications: Warfarin 3mg, Furosemide 80mg, 
+                 Digoxin 0.125mg, Carvedilol 12.5mg
+    Acuity: 2 (High)
+
+VitalsGenerator class:
+  Background asyncio task, updates every 3 seconds per patient
+  Each update: add physiological noise to baseline values:
+    HR: ±5 bpm gaussian noise
+    BP: ±8/4 mmHg gaussian noise  
+    RR: ±2 breaths/min
+    SpO2: ±1% (floor at 70%)
+    Temp: ±0.1°C
+  
+  DETERIORATION EVENTS — random triggers every 30-120 seconds:
+  Each patient has a 3% chance per cycle of entering a 
+  deterioration event. Events last 60-180 seconds then resolve.
+  
+  Event types per patient profile:
+    Chest pain patient: ST-elevation event →
+      HR spikes to 130+, BP drops to 88/54, 
+      SpO2 drops to 89%, RR rises to 28
+    
+    SOB patient: Bronchospasm event →
+      SpO2 drops to 82%, RR rises to 34,
+      HR rises to 140
+    
+    Altered MS patient: Hypertensive crisis →
+      BP rises to 220/130, HR 110, GCS drops to 12
+    
+    Syncope patient: Complete heart block →
+      HR drops to 28, BP drops to 72/40
+    
+    Seizure patient: Status epilepticus →
+      GCS drops to 6, HR 145, SpO2 88%
+    
+  Store last 60 vital sign readings per patient in deque
+  Expose: get_current_vitals(patient_id) → VitalSigns
+  Expose: get_vitals_history(patient_id) → list[VitalSigns]
+
+── deterioration.py ─────────────────────────────────────────
+Implement NEWS2 (National Early Warning Score 2) — the actual
+clinical standard used in UK NHS and many US hospitals.
+
+NEWS2 scoring table (implement exactly):
+
+  Respiratory Rate:
+    ≤8: +3 | 9-11: +1 | 12-20: 0 | 21-24: +2 | ≥25: +3
+  
+  SpO2 Scale 1 (no hypercapnic respiratory failure):
+    ≤91: +3 | 92-93: +2 | 94-95: +1 | ≥96: 0
+  
+  Systolic BP:
+    ≤90: +3 | 91-100: +2 | 101-110: +1 | 
+    111-219: 0 | ≥220: +3
+  
+  Heart Rate:
+    ≤40: +3 | 41-50: +1 | 51-90: 0 | 
+    91-110: +1 | 111-130: +2 | ≥131: +3
+  
+  Consciousness (ACVPU):
+    Alert: 0 | Confusion/Voice/Pain/Unresponsive: +3
+    (Map GCS: 15=Alert, 13-14=Confusion, <13=Pain/Unresponsive)
+  
+  Temperature:
+    ≤35.0: +3 | 35.1-36.0: +1 | 36.1-38.0: +0 |
+    38.1-39.0: +1 | ≥39.1: +2
+
+  Total NEWS2 Score interpretation:
+    0: LOW risk
+    1-4: LOW risk (monitor every 4-6 hours)
+    5-6: MEDIUM risk (urgent review — 1 hour)
+    3 in single parameter: MEDIUM risk
+    7+: HIGH risk (emergency — continuous monitoring)
+
+Function: calculate_news2(vitals: VitalSigns) -> NEWS2Result(
+  score: int,
+  risk_level: "LOW"|"MEDIUM"|"HIGH",
+  component_scores: dict,     (breakdown per vital)
+  recommended_action: str,
+  escalation_required: bool,
+  monitoring_frequency: str
+)
+
+Function: detect_deterioration_trend(
+  history: list[VitalSigns], window_minutes: int = 10
+) -> DeteriorationTrend(
+  is_deteriorating: bool,
+  trend_direction: "IMPROVING"|"STABLE"|"WORSENING",
+  rate_of_change: dict,       (per vital sign)
+  predicted_news_in_5min: int,
+  confidence: float
+)
+
+── drug_interactions.py ─────────────────────────────────────
+Drug interaction checker using a hardcoded interaction 
+database (no external API needed — use real clinical data).
+
+INTERACTION_DATABASE dict — include at minimum these 
+clinically significant interactions (all real):
+
+  ("warfarin", "ibuprofen"): Interaction(
+    severity: "MAJOR",
+    mechanism: "NSAIDs inhibit platelet aggregation and may 
+                displace warfarin from protein binding sites",
+    effect: "Significantly increased bleeding risk, 
+             possible GI hemorrhage",
+    recommendation: "Avoid combination. Use acetaminophen 
+                     for analgesia if needed.",
+    monitor: "INR closely if combination unavoidable"
+  )
+  
+  ("digoxin", "furosemide"): Interaction(
+    severity: "MODERATE",
+    mechanism: "Furosemide causes hypokalemia which 
+                potentiates digoxin toxicity",
+    effect: "Increased risk of digoxin toxicity: 
+             arrhythmias, nausea, visual disturbances",
+    recommendation: "Monitor serum potassium and digoxin 
+                     levels. Supplement K+ as needed.",
+    monitor: "Serum K+, digoxin levels, ECG"
+  )
+  
+  ("metoprolol", "digoxin"): Interaction(
+    severity: "MODERATE", 
+    mechanism: "Additive AV node depression",
+    effect: "Risk of severe bradycardia and heart block",
+    recommendation: "Monitor heart rate closely. 
+                     Reduce doses if HR < 50 bpm.",
+    monitor: "Heart rate, ECG"
+  )
+  
+  ("warfarin", "amiodarone"): Interaction(
+    severity: "MAJOR",
+    mechanism: "Amiodarone inhibits CYP2C9 metabolism 
+                of warfarin",
+    effect: "2-3x increase in INR, major bleeding risk",
+    recommendation: "Reduce warfarin dose by 30-50%. 
+                     Monitor INR weekly initially.",
+    monitor: "INR twice weekly for first month"
+  )
+  
+  ("levetiracetam", "carbamazepine"): Interaction(
+    severity: "MODERATE",
+    mechanism: "Carbamazepine induces CYP450 enzymes 
+                reducing levetiracetam levels",
+    effect: "Reduced seizure control",
+    recommendation: "May need to increase levetiracetam dose",
+    monitor: "Seizure frequency, drug levels"
+  )
+  
+  Add 20 more clinically relevant interactions covering:
+  ACE inhibitors + K-sparing diuretics (hyperkalemia)
+  SSRIs + NSAIDs (GI bleeding)
+  Fluoroquinolones + antacids (absorption)
+  Statins + macrolides (myopathy)
+  MAOIs + any serotonergic (serotonin syndrome)
+  Beta blockers + calcium channel blockers (bradycardia)
+  Opioids + benzodiazepines (respiratory depression — BLACK BOX)
+
+Function: check_interactions(
+  medications: list[Medication]
+) -> list[DrugInteraction]
+  Check all pairwise combinations
+  Return sorted by severity (MAJOR first)
+
+Function: check_new_drug(
+  new_drug: str, 
+  current_medications: list[Medication]
+) -> list[DrugInteraction]
+
+── diagnosis_engine.py ──────────────────────────────────────
+AI differential diagnosis generator using Gemini.
+
+Function: async generate_differential(
+  patient: Patient,
+  current_vitals: VitalSigns,
+  lab_results: list[LabResult],
+  news2: NEWS2Result
+) -> DifferentialDiagnosis
+
+Build a rich clinical prompt:
+  "You are an expert emergency medicine physician at a 
+   Level 1 trauma center. Generate a differential diagnosis.
+   
+   PATIENT: {age}{sex}, {chief_complaint}
+   
+   VITAL SIGNS:
+   HR: {hr} bpm | BP: {sbp}/{dbp} mmHg | 
+   RR: {rr}/min | SpO2: {spo2}% | 
+   Temp: {temp}°C | GCS: {gcs}
+   NEWS2 Score: {news2_score} ({risk_level})
+   
+   MEDICATIONS: {medications}
+   CONDITIONS: {conditions}
+   ALLERGIES: {allergies}
+   
+   LAB RESULTS: {labs}
+   
+   DRUG INTERACTIONS DETECTED: {interactions}
+   
+   Respond in this EXACT JSON format only:
+   {
+     'diagnoses': [
+       {
+         'rank': 1,
+         'diagnosis': 'string',
+         'icd10_code': 'string',
+         'probability': 'HIGH|MEDIUM|LOW',
+         'probability_percent': int,
+         'supporting_evidence': ['string'],
+         'against_evidence': ['string'],
+         'immediate_workup': ['string'],
+         'red_flags': ['string']
+       }
+     ],
+     'immediate_actions': ['string'],
+     'disposition_recommendation': 'DISCHARGE|OBSERVE|ADMIT_FLOOR|ADMIT_ICU|OR',
+     'time_sensitive': bool,
+     'time_sensitivity_reason': 'string | null'
+   }
+   
+   Provide 3-5 diagnoses ranked by probability.
+   Be specific. Use real medical terminology.
+   ICD-10 codes must be accurate.
+   CRITICAL: Return valid JSON only. No markdown."
+
+Parse JSON response. 
+On parse failure: return structured error with raw text.
+Cache results per patient: regenerate only if vitals 
+change by >10% or new labs arrive.
+
+── note_generator.py ────────────────────────────────────────
+Auto-generates clinical SOAP notes from patient data.
+
+Function: async generate_soap_note(
+  patient: Patient,
+  vitals: VitalSigns,
+  labs: list[LabResult],
+  differential: DifferentialDiagnosis,
+  news2: NEWS2Result
+) -> SOAPNote
+
+SOAPNote(
+  patient_id: str,
+  timestamp: ISO8601,
+  subjective: str,    (chief complaint, HPI, symptoms)
+  objective: str,     (vitals, labs, physical exam findings)
+  assessment: str,    (differential diagnoses, clinical reasoning)
+  plan: str,          (workup, treatments, disposition)
+  mdm_level: "LOW"|"MODERATE"|"HIGH",  (medical decision making)
+  attestation: str,   (standard physician attestation template)
+  word_count: int,
+  generated_in_ms: int
+)
+
+Gemini prompt for SOAP note:
+  "You are an experienced emergency medicine physician 
+   writing a clinical SOAP note for the medical record.
+   Write in professional medical documentation style.
+   Use standard medical abbreviations.
+   
+   Generate a complete SOAP note for:
+   PATIENT DATA: {full_patient_json}
+   DIFFERENTIAL: {differential_json}
+   
+   The note must be:
+   - Clinically accurate and complete
+   - Appropriate for medicolegal documentation  
+   - Written as if by the attending physician
+   - Include specific values from the vitals/labs
+   
+   Format as JSON:
+   {subjective, objective, assessment, plan, mdm_level}
+   
+   MDM Level criteria:
+   LOW: straightforward, 1-2 diagnoses, minimal risk
+   MODERATE: multiple diagnoses, prescription drug management
+   HIGH: complex diagnoses, threat to life, ICU-level decisions"
+
+── icu_predictor.py ─────────────────────────────────────────
+Predicts probability of ICU admission using a logistic 
+regression model trained on synthetic data at startup.
+
+Class ICUPredictor:
+  
+  on __init__:
+    Generate 1000 synthetic training samples:
+      Features: [news2_score, age, hr, sbp, rr, spo2, 
+                 temp, gcs, num_conditions, num_medications]
+      Label: icu_admission (bool)
+      
+      Labeling logic for synthetic data:
+        icu=True if: news2 >= 7 OR
+                     sbp < 80 OR
+                     spo2 < 85 OR
+                     gcs < 10 OR
+                     (news2 >= 5 AND age > 65)
+      Add 10% noise to labels for realism
+      
+    Train sklearn LogisticRegression on this data
+    Also compute feature importance scores
+  
+  Method: predict(vitals: VitalSigns, 
+                  patient: Patient,
+                  news2: NEWS2Result) -> ICUPrediction(
+    probability: float,           (0.0 to 1.0)
+    percentage: int,              (0 to 100)
+    risk_category: "LOW"|"MODERATE"|"HIGH"|"VERY_HIGH",
+    key_factors: list[str],       (top 3 features driving prediction)
+    confidence_interval: tuple[float, float],
+    recommendation: str
+  )
+  
+  risk_category thresholds:
+    <25%: LOW
+    25-50%: MODERATE  
+    50-75%: HIGH
+    >75%: VERY_HIGH
+
+── triage_agent.py ──────────────────────────────────────────
+Autonomous AI agent that continuously monitors ALL patients
+and prioritizes who needs attention most urgently.
+
+Class TriageAgent:
+  Runs every 15 seconds as background asyncio task
+  
+  Each cycle:
+    1. Collect state of all 8 patients:
+       {patient_id, name, news2_score, icu_probability,
+        deterioration_trend, active_alerts, chief_complaint,
+        time_in_ed_minutes, acuity_level}
+    
+    2. Send to Gemini:
+       "You are the attending physician supervising an 
+        emergency department with 8 patients. 
+        
+        Current patient status:
+        {patient_states_json}
+        
+        Your job:
+        1. PRIORITIZE: Rank all 8 patients by urgency 
+           (most critical first). Consider: NEWS2 score,
+           deterioration trend, ICU probability, time in ED,
+           chief complaint severity.
+        
+        2. CRITICAL ACTIONS: List any actions needed in 
+           next 5 minutes (empty list if none urgent).
+        
+        3. PHYSICIAN FOCUS: Which single patient needs 
+           the physician's immediate attention and why?
+        
+        4. SAFE TO WAIT: Which patients are stable and 
+           can safely wait >30 minutes?
+        
+        Respond in JSON only:
+        {
+          'priority_ranking': [
+            {rank, patient_id, name, urgency_reason, 
+             recommended_action, time_to_act_minutes}
+          ],
+          'critical_actions': [
+            {patient_id, action, rationale, time_critical: bool}
+          ],
+          'physician_focus': {
+            patient_id, name, reason, specific_concern
+          },
+          'stable_patients': [patient_id],
+          'department_status': 'CONTROLLED|BUSY|CRITICAL_LOAD',
+          'cycle_summary': 'one sentence summary'
+        }"
+    
+    3. Store result as TriageCycle
+    4. Generate ClinicalAlerts for any critical_actions
+    
+  Routes:
+    GET /api/triage/latest → most recent TriageCycle
+    GET /api/triage/history → last 20 cycles
+    GET /api/triage/priority → just the ranking list
+
+── routes_vitals.py ─────────────────────────────────────────
+GET /api/vitals/{patient_id}/current → latest VitalSigns
+GET /api/vitals/{patient_id}/history → last 60 readings
+GET /api/vitals/{patient_id}/stream → SSE, new reading every 3s
+GET /api/vitals/{patient_id}/news2 → NEWS2Result
+GET /api/vitals/all/current → all 8 patients current vitals
+GET /api/vitals/all/stream → SSE, all patients every 3s
+
+── routes_ai.py ─────────────────────────────────────────────
+POST /api/ai/diagnosis/{patient_id} → DifferentialDiagnosis
+POST /api/ai/soap/{patient_id} → SOAPNote
+GET  /api/ai/icu-risk/{patient_id} → ICUPrediction
+GET  /api/ai/triage/latest → TriageCycle
+POST /api/ai/query → natural language clinical query
+  Body: {patient_id: str, question: str}
+  Returns: {answer: str, clinical_basis: str}
+
+── routes_drugs.py ──────────────────────────────────────────
+GET  /api/drugs/interactions/{patient_id} → all interactions
+POST /api/drugs/check → check new drug against patient meds
+  Body: {patient_id: str, new_drug: str}
+GET  /api/drugs/database → full interaction database summary
+
+── routes_alerts.py ─────────────────────────────────────────
+GET  /api/alerts/all → all active alerts, all patients
+GET  /api/alerts/{patient_id} → alerts for one patient
+GET  /api/alerts/stream → SSE, push new alerts in real-time
+POST /api/alerts/{alert_id}/acknowledge → mark acknowledged
+GET  /api/alerts/unacknowledged/count → integer count
+
+═══════════════════════════════════════════════════════════════
+FRONTEND SPEC
+═══════════════════════════════════════════════════════════════
+
+── App.jsx ──────────────────────────────────────────────────
+Clean clinical aesthetic. NOT dark hacker — clean medical.
+
+Colors:
+  --bg-primary: #0f1117
+  --bg-card: #161b27  
+  --bg-border: #1e2d40
+  --clinical-blue: #2196f3
+  --critical-red: #f44336
+  --warning-amber: #ff9800
+  --normal-green: #4caf50
+  --text-primary: #e8eaf6
+  --text-secondary: #90a4ae
+
+Layout — Two views toggled by top nav:
+
+VIEW 1 — "PATIENT BOARD" (default):
+  Nurse station overview of all 8 patients
+  
+VIEW 2 — "PATIENT DETAIL" (click any patient):
+  Full clinical workup for selected patient
+
+Header (60px):
+  Left: "💉 VitalIQ" logo | "Emergency Department" subtitle
+  Center: Department status pill from triage agent |
+          Unacknowledged alert count (red badge)
+  Right: Current time | "8 PATIENTS" count | 
+         "🤖 AI ACTIVE" indicator
+
+── PatientBoard.jsx ─────────────────────────────────────────
+2×4 grid of PatientCard components (2 rows, 4 columns)
+Full width, fills screen below header
+On click: navigate to patient detail view
+
+── PatientCard.jsx ──────────────────────────────────────────
+Each card shows:
+
+  TOP: Bed | MRN | Name, Age/Sex | Acuity badge (ESI 1-5)
+       ESI colors: 1=red, 2=orange, 3=yellow, 4=green, 5=blue
+  
+  MIDDLE: 6 vital signs in a 2×3 grid:
+    Each vital: value in large font + unit + trend arrow
+    Color coding:
+      Normal: var(--normal-green)
+      Abnormal: var(--warning-amber)
+      Critical: var(--critical-red) with subtle pulse animation
+    Trend arrows: ↑ (worsening) ↓ (improving) → (stable)
+    Based on last 3 readings slope
+  
+  BOTTOM LEFT: NEWS2 score badge
+    0-4: green | 5-6: amber | 7+: red (pulsing)
+  
+  BOTTOM RIGHT: ICU probability %
+    Color matches probability category
+  
+  TOP RIGHT CORNER: alert count badge (red dot with number)
+  
+  BORDER: normal=subtle | NEWS 5-6=amber glow | 
+          NEWS 7+=red pulsing glow border animation
+  
+  If triage agent ranked this patient #1:
+    Gold crown icon top-left: "👑 PRIORITY"
+    Card gets brightest border
+
+── VitalsMonitor.jsx ────────────────────────────────────────
+Real-time waveform display for selected patient.
+Shows last 60 readings (3 minutes of data) as live charts.
+
+6 individual Recharts LineChart components stacked:
+  1. Heart Rate — red line, normal range shading 60-100 bpm
+  2. Blood Pressure — blue line (systolic) + lighter (diastolic)
+  3. Respiratory Rate — green line, normal 12-20
+  4. SpO2 — cyan line, danger zone shading below 94%
+  5. Temperature — orange line, fever line at 38.0°C
+  6. GCS — purple step chart (discrete values 3-15)
+
+Each chart:
+  Height: 80px
+  X-axis: time labels (last 3 min)
+  Y-axis: clinical range with min/max
+  Danger zones: red shaded area for critical ranges
+  Current value displayed large on right side of each chart
+  Trend: ↑↓→ arrow next to current value
+  Updates every 3 seconds via SSE hook
+
+── NEWSGauge.jsx ────────────────────────────────────────────
+Prominent display of NEWS2 score for selected patient.
+
+Large circular gauge (similar to AegisView threat gauge):
+  Score: huge number center
+  Risk level: below score
+  Color arcs: green(0-4) → amber(5-6) → red(7+)
+
+Below gauge: breakdown table:
+  Each vital sign component | Score contribution | Status
+  Rows color coded by contribution (0=white, 1+=amber, 3=red)
+
+Recommended action box below:
+  Blue info box with monitoring frequency
+  Red urgent box if escalation required
+
+── DiagnosisPanel.jsx ───────────────────────────────────────
+AI differential diagnosis display.
+
+"🧠 AI DIFFERENTIAL DIAGNOSIS" header with:
+  "Generated by Gemini AI" subtle label
+  "Regenerate" button (triggers new API call)
+  "Generated: {timestamp}" small text
+
+Diagnoses list (3-5 items):
+  Each diagnosis card:
+    Rank number (#1, #2...) | Diagnosis name LARGE | 
+    ICD-10 code pill | Probability badge (HIGH/MED/LOW)
+    Probability bar (filled %)
+    
+    Expandable section (click to open):
+      "Supporting Evidence" — green checkmark list
+      "Against" — red X list
+      "Immediate Workup" — ordered list with urgency
+      "Red Flags" — red warning list
+
+Below diagnoses:
+  "IMMEDIATE ACTIONS" box — blue, prominent
+  "DISPOSITION" recommendation — large badge:
+    DISCHARGE/OBSERVE/ADMIT_FLOOR/ADMIT_ICU/OR
+    Each has distinct color
+  
+  If time_sensitive=true:
+    Flashing red banner: "⚡ TIME CRITICAL: {reason}"
+
+── DrugChecker.jsx ──────────────────────────────────────────
+Drug interaction display + new drug checker.
+
+Current medications list:
+  Each drug: name | dose | route | frequency
+  Interaction warning badge on drugs with known interactions
+
+Detected interactions section:
+  Each interaction card:
+    MAJOR badge (red) | MODERATE (amber) | MINOR (green)
+    Drug pair: "Warfarin ↔ Ibuprofen"
+    Mechanism (collapsed by default, click to expand)
+    Effect description
+    Recommendation box (blue)
+    Monitor list
+
+"Check New Drug" input:
+  Text input: "Type drug name..."
+  On enter/click: POST to /api/drugs/check
+  Results appear below instantly
+
+── SOAPNoteWriter.jsx ───────────────────────────────────────
+AI-powered clinical documentation.
+
+"📝 AI CLINICAL NOTE GENERATOR" header
+
+"Generate SOAP Note" button — prominent, blue
+  On click: shows loading spinner with message:
+  "AI is drafting clinical documentation..."
+  Streams response via SSE or polls until ready
+
+When note is ready:
+  4 sections displayed as expandable cards:
+  
+  S — SUBJECTIVE (purple header)
+    Patient's reported symptoms, HPI
+  
+  O — OBJECTIVE (blue header)
+    Vitals, labs, physical findings
+    (pre-populated from actual patient data)
+  
+  A — ASSESSMENT (amber header)
+    Diagnosis reasoning
+  
+  P — PLAN (green header)
+    Treatment plan, orders, disposition
+  
+  Each section: 
+    Editable textarea (physician can modify AI draft)
+    Word count displayed
+  
+  Bottom buttons:
+    "📋 Copy Full Note" — copies to clipboard
+    "💾 Save to Chart" — shows success toast
+    "🔄 Regenerate" — new AI generation
+    
+  MDM Level badge: LOW/MODERATE/HIGH
+  Attestation template shown at bottom in smaller grey text
+
+── ICUPredictor.jsx ─────────────────────────────────────────
+ICU admission probability visualization.
+
+Large percentage number: "73%" in risk color
+Risk category badge: VERY HIGH / HIGH / MODERATE / LOW
+
+Horizontal probability bar (full width):
+  Gradient: green → amber → red
+  Marker at current probability
+  Labels: 0% | 25% | 50% | 75% | 100%
+  Zones labeled: LOW | MODERATE | HIGH | VERY HIGH
+
+"Key Risk Factors" section:
+  Top 3 contributing features as tags:
+  e.g. "NEWS2: 8" | "Age: 78" | "SpO2: 89%"
+
+Trend line (small Recharts line):
+  ICU probability over last 10 triage cycles
+  Shows if patient is getting better or worse
+
+Recommendation box (colored by risk):
+  Specific clinical recommendation text
+
+── AlertTimeline.jsx ────────────────────────────────────────
+Real-time clinical alerts feed, all patients or filtered.
+
+"🔔 CLINICAL ALERTS" header | unread count badge
+
+Filter tabs: ALL | CRITICAL | DRUG | LAB | DETERIORATION
+
+Each alert:
+  Left border color by severity:
+    INFO: blue | WARN: amber | URGENT: orange | CRITICAL: red
+  
+  Content:
+    Time ago ("2 min ago") | Patient name | Alert type badge
+    Title in bold
+    Body text
+    "Acknowledge" button → marks read, dims the alert
+  
+  CRITICAL alerts: full red background tint + shake animation
+  on first appearance
+  
+  Unacknowledged URGENT/CRITICAL: pulsing left border
+
+New alerts slide in from top with animation.
+SSE connection to /api/alerts/stream
+
+── TriageAgent.jsx ──────────────────────────────────────────
+Autonomous AI triage agent panel.
+
+"🤖 AI TRIAGE AGENT" header | "● ANALYZING" pulsing indicator
+"Last run: 34 seconds ago" | "Next run: 11 seconds"
+
+PHYSICIAN FOCUS section (most prominent):
+  "⚠ IMMEDIATE ATTENTION REQUIRED"
+  Patient name + bed in large text
+  Reason: AI's specific concern
+  Recommended action in bold
+
+Priority ranking list (all 8 patients):
+  Rank | Bed | Patient Name | Urgency reason | 
+  "Act within: X min" | Recommended action
+  #1 patient: red background | #2: amber | rest: normal
+
+Department Status pill:
+  CONTROLLED (green) | BUSY (amber) | CRITICAL_LOAD (red)
+
+Cycle summary text: 
+  "One sentence AI summary of current department state"
+
+"Stable — Can Wait" section:
+  Green background, patient names in a row
+
+Auto-refreshes every 15 seconds.
+
+── LabResults.jsx ───────────────────────────────────────────
+Lab values display with clinical flags.
+
+Organized by panel:
+  METABOLIC PANEL: Na, K, Cl, CO2, BUN, Creatinine, Glucose
+  CBC: WBC, Hemoglobin, Hematocrit, Platelets
+  CARDIAC: Troponin, BNP, CK-MB
+  COAG: PT, INR, PTT
+  ABG: pH, PaO2, PaCO2, HCO3
+
+Each lab value row:
+  Test name | Value + unit | Reference range | Status badge
+  Status colors:
+    NORMAL: white
+    LOW: blue (below range)
+    HIGH: amber (above range)
+    CRITICAL_LOW: red bold with "!" icon
+    CRITICAL_HIGH: red bold with "!" icon
+  
+  Delta from last result (if available):
+    ↑ red if worsening | ↓ green if improving
+
+Generate synthetic lab results per patient that are 
+clinically consistent with their diagnosis and vitals.
+Update labs every 60 seconds with small changes.
+
+── clinicalStore.js ─────────────────────────────────────────
+Zustand store:
+
+State:
+  patients: Patient[]          (all 8 patients)
+  selectedPatientId: str|null
+  vitalsHistory: { [patient_id]: VitalSigns[] }
+  currentVitals: { [patient_id]: VitalSigns }
+  news2Scores: { [patient_id]: NEWS2Result }
+  icuPredictions: { [patient_id]: ICUPrediction }
+  differentials: { [patient_id]: DifferentialDiagnosis }
+  soapNotes: { [patient_id]: SOAPNote }
+  alerts: ClinicalAlert[]
+  unacknowledgedCount: int
+  triageCycle: TriageCycle | null
+  labResults: { [patient_id]: LabResult[] }
+  interactions: { [patient_id]: DrugInteraction[] }
+
+Actions:
+  updateVitals(patient_id, vitals)
+  updateNEWS2(patient_id, news2)
+  addAlert(alert)
+  acknowledgeAlert(alert_id)
+  setSelectedPatient(patient_id)
+  setDifferential(patient_id, differential)
+  setSoapNote(patient_id, note)
+  setTriageCycle(cycle)
+  updateLabResults(patient_id, labs)
+
+Derived selectors:
+  getMostCriticalPatient() → patient with highest NEWS2
+  getPatientsNeedingAttention() → NEWS2 >= 5
+  getCriticalAlertCount() → unacknowledged CRITICAL count
+
+═══════════════════════════════════════════════════════════════
+REQUIREMENTS.TXT
+═══════════════════════════════════════════════════════════════
+
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
+sse-starlette>=2.0.0
+google-generativeai>=0.5.0
+scikit-learn>=1.4.0
+numpy>=1.26.0
+python-multipart>=0.0.9
+psutil>=5.9.0
+
+PACKAGE.JSON dependencies:
+react, react-dom, recharts, zustand, 
+react-router-dom, vite, @vitejs/plugin-react
+
+═══════════════════════════════════════════════════════════════
+CRITICAL MEDICAL DISCLAIMER — ADD EVERYWHERE
+═══════════════════════════════════════════════════════════════
+
+Add to README.md prominently:
+  "⚠ RESEARCH & DEMONSTRATION ONLY
+   VitalIQ is a hackathon demonstration project.
+   It is NOT FDA cleared or approved.
+   It must NOT be used for actual clinical decisions.
+   All patient data is entirely synthetic.
+   AI outputs are for demonstration purposes only.
+   Always consult qualified medical professionals."
+
+Add as a dismissable banner in App.jsx header:
+  Amber bar at very top: 
+  "⚠ DEMO MODE — Synthetic data only. 
+   Not for clinical use. Not FDA approved."
+
+This disclaimer is non-negotiable. Include it.
+
+═══════════════════════════════════════════════════════════════
+REPLIT CONFIG
+═══════════════════════════════════════════════════════════════
+
+.replit: run = "bash start.sh"
+
+start.sh:
+  cd backend && pip install -r requirements.txt -q &
+  cd frontend && npm install && npm run build &
+  wait
+  cd frontend && npm run preview -- --port 3000 &
+  cd backend && uvicorn main:app --host 0.0.0.0 --port 8000
+
+vite.config.js: proxy /api → localhost:8000
+
+GEMINI_API_KEY from os.environ — never hardcoded.
+
+═══════════════════════════════════════════════════════════════
+QUALITY GATES
+═══════════════════════════════════════════════════════════════
+
+1. NEWS2 score must be mathematically correct per NHS spec
+2. Drug interactions must use real clinical mechanisms
+3. Vitals must update every 3 seconds — no blocking calls
+4. Deterioration events must be visible and dramatic on board
+5. AI diagnosis must regenerate on significant vitals change
+6. Triage agent must correctly prioritize highest NEWS2 first
+7. SOAP notes must sound clinically authentic
+8. All SSE endpoints handle disconnect gracefully
+9. ICU predictor must use actual sklearn — not fake numbers
+10. Medical disclaimer banner visible at all times
+11. PatientCard borders must animate on deterioration events
+12. Lab critical values must trigger ClinicalAlerts immediately
+
+═══════════════════════════════════════════════════════════════
+EXECUTE. Generate files in this order:
+1.  backend/models/schemas.py
+2.  backend/core/fhir_models.py
+3.  backend/core/vitals_engine.py
+4.  backend/core/deterioration.py
+5.  backend/core/drug_interactions.py
+6.  backend/ai/diagnosis_engine.py
+7.  backend/ai/note_generator.py
+8.  backend/ai/icu_predictor.py
+9.  backend/ai/triage_agent.py
+10. backend/api/routes_patients.py
+11. backend/api/routes_vitals.py
+12. backend/api/routes_ai.py
+13. backend/api/routes_drugs.py
+14. backend/api/routes_alerts.py
+15. backend/main.py
+16. backend/requirements.txt
+17. src/store/clinicalStore.js
+18. src/utils/clinicalRanges.js
+19. src/utils/newsScore.js
+20. src/hooks/useVitalsStream.js
+21. src/hooks/usePatient.js
+22. src/components/PatientCard.jsx
+23. src/components/PatientBoard.jsx
+24. src/components/VitalsMonitor.jsx
+25. src/components/NEWSGauge.jsx
+26. src/components/DiagnosisPanel.jsx
+27. src/components/DrugChecker.jsx
+28. src/components/SOAPNoteWriter.jsx
+29. src/components/ICUPredictor.jsx
+30. src/components/AlertTimeline.jsx
+31. src/components/TriageAgent.jsx
+32. src/components/LabResults.jsx
+33. src/components/PatientHeader.jsx
+34. src/App.jsx
+35. src/main.jsx
+36. index.html
+37. vite.config.js
+38. package.json
+39. .replit
+40. README.md
+
+Confirm each file with ✓. 
+Do not stop until all 40 files are complete.
+═══════════════════════════════════════════════════════════════

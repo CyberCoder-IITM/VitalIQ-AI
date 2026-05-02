@@ -3,20 +3,31 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: VitalIQ Clinical Co-Pilot API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: patients
+    description: Patient management
+  - name: vitals
+    description: Vital signs monitoring
+  - name: ai
+    description: AI clinical decision support
+  - name: drugs
+    description: Drug interaction checking
+  - name: alerts
+    description: Clinical alerts
+  - name: triage
+    description: AI triage agent
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,363 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List all patients
+      responses:
+        "200":
+          description: All patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+
+  /patients/{patientId}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Patient detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          description: Not found
+
+  /vitals/{patientId}/current:
+    get:
+      operationId: getCurrentVitals
+      tags: [vitals]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current vitals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VitalSigns"
+
+  /vitals/{patientId}/history:
+    get:
+      operationId: getVitalsHistory
+      tags: [vitals]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Vitals history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VitalSigns"
+
+  /vitals/{patientId}/news2:
+    get:
+      operationId: getNews2Score
+      tags: [vitals]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: NEWS2 result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/News2Result"
+
+  /vitals/all/current:
+    get:
+      operationId: getAllCurrentVitals
+      tags: [vitals]
+      summary: All 8 patients current vitals
+      responses:
+        "200":
+          description: All current vitals
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/VitalSigns"
+
+  /vitals/{patientId}/labs:
+    get:
+      operationId: getLabResults
+      tags: [vitals]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lab results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabResult"
+
+  /ai/diagnosis/{patientId}:
+    post:
+      operationId: generateDiagnosis
+      tags: [ai]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Differential diagnosis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DifferentialDiagnosis"
+
+  /ai/soap/{patientId}:
+    post:
+      operationId: generateSoapNote
+      tags: [ai]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SOAP note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoapNote"
+
+  /ai/icu-risk/{patientId}:
+    get:
+      operationId: getIcuRisk
+      tags: [ai]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ICU admission prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IcuPrediction"
+
+  /ai/triage/latest:
+    get:
+      operationId: getLatestTriage
+      tags: [triage]
+      responses:
+        "200":
+          description: Latest triage cycle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageCycle"
+
+  /ai/triage/history:
+    get:
+      operationId: getTriageHistory
+      tags: [triage]
+      responses:
+        "200":
+          description: Triage history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TriageCycle"
+
+  /ai/triage/priority:
+    get:
+      operationId: getTriagePriority
+      tags: [triage]
+      responses:
+        "200":
+          description: Priority ranking
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TriagePriorityItem"
+
+  /ai/query:
+    post:
+      operationId: clinicalQuery
+      tags: [ai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClinicalQueryRequest"
+      responses:
+        "200":
+          description: Clinical answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicalQueryResponse"
+
+  /drugs/interactions/{patientId}:
+    get:
+      operationId: getDrugInteractions
+      tags: [drugs]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drug interactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrugInteraction"
+
+  /drugs/check:
+    post:
+      operationId: checkNewDrug
+      tags: [drugs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrugCheckRequest"
+      responses:
+        "200":
+          description: Drug interaction check results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrugInteraction"
+
+  /drugs/database:
+    get:
+      operationId: getDrugDatabase
+      tags: [drugs]
+      responses:
+        "200":
+          description: Interaction database summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrugInteraction"
+
+  /alerts/all:
+    get:
+      operationId: getAllAlerts
+      tags: [alerts]
+      responses:
+        "200":
+          description: All active alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClinicalAlert"
+
+  /alerts/{patientId}:
+    get:
+      operationId: getPatientAlerts
+      tags: [alerts]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alerts for patient
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClinicalAlert"
+
+  /alerts/{alertId}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicalAlert"
+
+  /alerts/unacknowledged/count:
+    get:
+      operationId: getUnacknowledgedCount
+      tags: [alerts]
+      responses:
+        "200":
+          description: Unacknowledged count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertCount"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +399,410 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    Medication:
+      type: object
+      properties:
+        name:
+          type: string
+        dose:
+          type: string
+        route:
+          type: string
+        frequency:
+          type: string
+        started:
+          type: string
+      required: [name, dose, route, frequency, started]
+
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+        mrn:
+          type: string
+        name:
+          type: string
+        age:
+          type: integer
+        sex:
+          type: string
+          enum: [M, F]
+        dob:
+          type: string
+        chief_complaint:
+          type: string
+        arrival_time:
+          type: string
+        bed:
+          type: string
+        attending:
+          type: string
+        code_status:
+          type: string
+          enum: [FULL, DNR, DNI]
+        allergies:
+          type: array
+          items:
+            type: string
+        current_medications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Medication"
+        active_conditions:
+          type: array
+          items:
+            type: string
+        acuity:
+          type: integer
+      required: [id, mrn, name, age, sex, dob, chief_complaint, arrival_time, bed, attending, code_status, allergies, current_medications, active_conditions, acuity]
+
+    VitalSigns:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        timestamp:
+          type: string
+        heart_rate:
+          type: number
+        systolic_bp:
+          type: number
+        diastolic_bp:
+          type: number
+        respiratory_rate:
+          type: number
+        spo2:
+          type: number
+        temperature:
+          type: number
+        gcs:
+          type: integer
+        etco2:
+          type: number
+          nullable: true
+        pain_score:
+          type: integer
+      required: [patient_id, timestamp, heart_rate, systolic_bp, diastolic_bp, respiratory_rate, spo2, temperature, gcs, pain_score]
+
+    LabResult:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        timestamp:
+          type: string
+        test_name:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        reference_low:
+          type: number
+        reference_high:
+          type: number
+        status:
+          type: string
+          enum: [NORMAL, LOW, HIGH, CRITICAL_LOW, CRITICAL_HIGH]
+        delta:
+          type: number
+          nullable: true
+      required: [patient_id, timestamp, test_name, value, unit, reference_low, reference_high, status]
+
+    News2ComponentScores:
+      type: object
+      properties:
+        respiratory_rate:
+          type: integer
+        spo2:
+          type: integer
+        systolic_bp:
+          type: integer
+        heart_rate:
+          type: integer
+        consciousness:
+          type: integer
+        temperature:
+          type: integer
+      required: [respiratory_rate, spo2, systolic_bp, heart_rate, consciousness, temperature]
+
+    News2Result:
+      type: object
+      properties:
+        score:
+          type: integer
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        component_scores:
+          $ref: "#/components/schemas/News2ComponentScores"
+        recommended_action:
+          type: string
+        escalation_required:
+          type: boolean
+        monitoring_frequency:
+          type: string
+      required: [score, risk_level, component_scores, recommended_action, escalation_required, monitoring_frequency]
+
+    DiagnosisItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+        diagnosis:
+          type: string
+        icd10_code:
+          type: string
+        probability:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        probability_percent:
+          type: integer
+        supporting_evidence:
+          type: array
+          items:
+            type: string
+        against_evidence:
+          type: array
+          items:
+            type: string
+        immediate_workup:
+          type: array
+          items:
+            type: string
+        red_flags:
+          type: array
+          items:
+            type: string
+      required: [rank, diagnosis, icd10_code, probability, probability_percent, supporting_evidence, against_evidence, immediate_workup, red_flags]
+
+    DifferentialDiagnosis:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        generated_at:
+          type: string
+        diagnoses:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosisItem"
+        immediate_actions:
+          type: array
+          items:
+            type: string
+        disposition_recommendation:
+          type: string
+          enum: [DISCHARGE, OBSERVE, ADMIT_FLOOR, ADMIT_ICU, OR]
+        time_sensitive:
+          type: boolean
+        time_sensitivity_reason:
+          type: string
+          nullable: true
+      required: [patient_id, generated_at, diagnoses, immediate_actions, disposition_recommendation, time_sensitive]
+
+    SoapNote:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        timestamp:
+          type: string
+        subjective:
+          type: string
+        objective:
+          type: string
+        assessment:
+          type: string
+        plan:
+          type: string
+        mdm_level:
+          type: string
+          enum: [LOW, MODERATE, HIGH]
+        attestation:
+          type: string
+        word_count:
+          type: integer
+        generated_in_ms:
+          type: integer
+      required: [patient_id, timestamp, subjective, objective, assessment, plan, mdm_level, attestation, word_count, generated_in_ms]
+
+    IcuPrediction:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        probability:
+          type: number
+        percentage:
+          type: integer
+        risk_category:
+          type: string
+          enum: [LOW, MODERATE, HIGH, VERY_HIGH]
+        key_factors:
+          type: array
+          items:
+            type: string
+        confidence_interval_low:
+          type: number
+        confidence_interval_high:
+          type: number
+        recommendation:
+          type: string
+      required: [patient_id, probability, percentage, risk_category, key_factors, confidence_interval_low, confidence_interval_high, recommendation]
+
+    DrugInteraction:
+      type: object
+      properties:
+        drug_a:
+          type: string
+        drug_b:
+          type: string
+        severity:
+          type: string
+          enum: [MAJOR, MODERATE, MINOR]
+        mechanism:
+          type: string
+        effect:
+          type: string
+        recommendation:
+          type: string
+        monitor:
+          type: string
+      required: [drug_a, drug_b, severity, mechanism, effect, recommendation, monitor]
+
+    ClinicalAlert:
+      type: object
+      properties:
+        alert_id:
+          type: string
+        patient_id:
+          type: string
+        timestamp:
+          type: string
+        alert_type:
+          type: string
+          enum: [DETERIORATION, DRUG_INTERACTION, CRITICAL_LAB, NEWS_ESCALATION, AI_DIAGNOSIS, ICU_THRESHOLD]
+        severity:
+          type: string
+          enum: [INFO, WARN, URGENT, CRITICAL]
+        title:
+          type: string
+        body:
+          type: string
+        acknowledged:
+          type: boolean
+        news_score:
+          type: integer
+          nullable: true
+        patient_name:
+          type: string
+      required: [alert_id, patient_id, timestamp, alert_type, severity, title, body, acknowledged, patient_name]
+
+    AlertCount:
+      type: object
+      properties:
+        count:
+          type: integer
+      required: [count]
+
+    TriagePriorityItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+        patient_id:
+          type: string
+        name:
+          type: string
+        urgency_reason:
+          type: string
+        recommended_action:
+          type: string
+        time_to_act_minutes:
+          type: integer
+      required: [rank, patient_id, name, urgency_reason, recommended_action, time_to_act_minutes]
+
+    CriticalAction:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        action:
+          type: string
+        rationale:
+          type: string
+        time_critical:
+          type: boolean
+      required: [patient_id, action, rationale, time_critical]
+
+    PhysicianFocus:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        name:
+          type: string
+        reason:
+          type: string
+        specific_concern:
+          type: string
+      required: [patient_id, name, reason, specific_concern]
+
+    TriageCycle:
+      type: object
+      properties:
+        cycle_id:
+          type: string
+        timestamp:
+          type: string
+        priority_ranking:
+          type: array
+          items:
+            $ref: "#/components/schemas/TriagePriorityItem"
+        critical_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CriticalAction"
+        physician_focus:
+          $ref: "#/components/schemas/PhysicianFocus"
+        stable_patients:
+          type: array
+          items:
+            type: string
+        department_status:
+          type: string
+          enum: [CONTROLLED, BUSY, CRITICAL_LOAD]
+        cycle_summary:
+          type: string
+      required: [cycle_id, timestamp, priority_ranking, critical_actions, physician_focus, stable_patients, department_status, cycle_summary]
+
+    ClinicalQueryRequest:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        question:
+          type: string
+      required: [patient_id, question]
+
+    ClinicalQueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        clinical_basis:
+          type: string
+      required: [answer, clinical_basis]
+
+    DrugCheckRequest:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        new_drug:
+          type: string
+      required: [patient_id, new_drug]
