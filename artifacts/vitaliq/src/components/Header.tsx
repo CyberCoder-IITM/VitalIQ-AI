@@ -5,9 +5,9 @@ import { useClinicalStore, type ColorMode } from "@/store/clinicalStore";
 import { useGetAllSepsisStatuses, useGetOverdueMedications } from "@/hooks/usePhase3Api";
 
 const THEMES: { mode: ColorMode; label: string; icon: string; desc: string }[] = [
-  { mode: "dark",     icon: "🌑", label: "Dark",      desc: "Navy blue · default" },
-  { mode: "midnight", icon: "💚", label: "Midnight",  desc: "Black · green terminal" },
-  { mode: "light",    icon: "☀️",  label: "Light",     desc: "White · clinical day" },
+  { mode: "dark",     icon: "🌑", label: "Dark",     desc: "Navy blue · default" },
+  { mode: "midnight", icon: "💚", label: "Midnight", desc: "Black · green terminal" },
+  { mode: "light",    icon: "☀️",  label: "Light",    desc: "White · clinical day" },
 ];
 
 function ThemePicker() {
@@ -33,7 +33,7 @@ function ThemePicker() {
         title="Switch theme"
       >
         <span>{current.icon}</span>
-        <span className="hidden sm:inline font-medium">{current.label}</span>
+        <span className="hidden md:inline font-medium">{current.label}</span>
         <span className="text-[9px] opacity-60">▾</span>
       </button>
 
@@ -85,9 +85,9 @@ export default function Header() {
 
   const deptStatus = triage?.department_status ?? "CONTROLLED";
   const deptColors: Record<string, string> = {
-    CONTROLLED:   "text-green-400 border-green-400/30 bg-green-400/10",
-    BUSY:         "text-amber-400 border-amber-400/30 bg-amber-400/10",
-    CRITICAL_LOAD:"text-red-400 border-red-400/30 bg-red-400/10 animate-news-critical",
+    CONTROLLED:    "text-green-400 border-green-400/30 bg-green-400/10",
+    BUSY:          "text-amber-400 border-amber-400/30 bg-amber-400/10",
+    CRITICAL_LOAD: "text-red-400 border-red-400/30 bg-red-400/10 animate-news-critical",
   };
 
   const unacknowledgedCount = alertCount?.count ?? 0;
@@ -95,49 +95,57 @@ export default function Header() {
   const overdueMedCount = (overdueMeds as any[]).length;
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center px-4 gap-2 shrink-0 z-10">
-      <div className="flex items-center gap-2">
+    <header className="h-14 bg-card border-b border-border flex items-center px-3 gap-1.5 shrink-0 z-10 overflow-hidden">
+      {/* Brand */}
+      <div className="flex items-center gap-2 shrink-0">
         <span className="text-primary font-bold text-lg tracking-tight">VitalIQ</span>
-        <span className="text-muted-foreground text-xs border-l border-border pl-2">Emergency Department</span>
+        <span className="text-muted-foreground text-xs border-l border-border pl-2 hidden sm:block">Emergency Department</span>
       </div>
 
       <div className="flex-1" />
 
+      {/* COMMAND */}
       <button
         onClick={() => setCommandCenterOpen(true)}
-        className="flex items-center gap-1 text-xs font-medium text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors"
+        className="flex items-center gap-1 text-xs font-medium text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors shrink-0"
         title="Command Center [C]"
       >
-        ⚡ COMMAND
+        ⚡ <span className="hidden xs:inline">COMMAND</span>
       </button>
 
+      {/* PRESENT */}
       <button
         onClick={() => setPresentationModeOpen(true)}
-        className="flex items-center gap-1 text-xs font-medium text-purple-400 border border-purple-400/30 bg-purple-400/10 hover:bg-purple-400/20 px-2 py-1 rounded transition-colors"
+        className="flex items-center gap-1 text-xs font-medium text-purple-400 border border-purple-400/30 bg-purple-400/10 hover:bg-purple-400/20 px-2 py-1 rounded transition-colors shrink-0"
         title="Presentation Mode [P]"
       >
-        📊 PRESENT
+        📊 <span className="hidden xs:inline">PRESENT</span>
       </button>
 
+      {/* Sepsis — hide on mobile if cluttered */}
       {sepsisCount > 0 && (
-        <button className="flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded animate-pulse" title={`${sepsisCount} sepsis concern(s)`}>
+        <button className="hidden sm:flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded animate-pulse shrink-0" title={`${sepsisCount} sepsis concern(s)`}>
           🦠 <span className="font-bold">{sepsisCount}</span>
         </button>
       )}
 
+      {/* Overdue meds — hide on mobile */}
       {overdueMedCount > 0 && (
-        <button className="flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded" title={`${overdueMedCount} overdue medication(s)`}>
+        <button className="hidden sm:flex items-center gap-1 text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-1 rounded shrink-0" title={`${overdueMedCount} overdue medication(s)`}>
           💊 <span className="font-bold">{overdueMedCount}</span>
         </button>
       )}
 
-      <div className={`text-xs font-medium px-2 py-0.5 rounded border ${deptColors[deptStatus] ?? deptColors.CONTROLLED}`}>
-        {deptStatus.replace("_", " ")}
+      {/* Dept status — abbreviated on mobile */}
+      <div className={`text-xs font-medium px-1.5 py-0.5 rounded border shrink-0 ${deptColors[deptStatus] ?? deptColors.CONTROLLED}`}>
+        <span className="hidden sm:inline">{deptStatus.replace("_", " ")}</span>
+        <span className="sm:hidden">{deptStatus === "CRITICAL_LOAD" ? "CRIT" : deptStatus === "BUSY" ? "BUSY" : "OK"}</span>
       </div>
 
+      {/* Alerts */}
       <button
         onClick={toggleAlertsDrawer}
-        className="flex items-center gap-1.5 hover:bg-muted/20 px-2 py-1 rounded transition-colors"
+        className="flex items-center gap-1 hover:bg-muted/20 px-2 py-1 rounded transition-colors shrink-0"
         title="Alerts [A]"
       >
         {unacknowledgedCount > 0 && (
@@ -145,39 +153,45 @@ export default function Header() {
             {unacknowledgedCount}
           </span>
         )}
-        <span className="text-muted-foreground text-xs">ALERTS</span>
+        <span className="text-muted-foreground text-xs hidden sm:inline">ALERTS</span>
       </button>
 
+      {/* Triage — patient pages only, hide text on mobile */}
       {location.startsWith("/patient/") && (
         <button
           onClick={toggleTriageDrawer}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 px-2 py-1 rounded transition-colors"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 px-2 py-1 rounded transition-colors shrink-0"
           title="Triage Agent [T]"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-          🤖 TRIAGE
+          <span className="hidden sm:inline">🤖 TRIAGE</span>
+          <span className="sm:hidden">🤖</span>
         </button>
       )}
 
-      <div className="text-muted-foreground text-xs border-l border-border pl-3">8 PATIENTS</div>
+      {/* Patient count — desktop only */}
+      <div className="text-muted-foreground text-xs border-l border-border pl-3 hidden lg:block shrink-0">8 PATIENTS</div>
 
-      <div className="flex items-center gap-1.5 border-l border-border pl-3">
+      {/* AI status — desktop only */}
+      <div className="hidden lg:flex items-center gap-1.5 border-l border-border pl-3 shrink-0">
         <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
         <span className="text-green-400 text-xs font-medium">AI ACTIVE</span>
       </div>
 
-      <div className="text-muted-foreground text-xs font-mono border-l border-border pl-3">
+      {/* Clock — tablet+ */}
+      <div className="text-muted-foreground text-xs font-mono border-l border-border pl-3 hidden md:block shrink-0">
         {now.toLocaleTimeString("en-US", { hour12: false })}
       </div>
 
       {/* Theme picker */}
-      <div className="border-l border-border pl-2">
+      <div className="border-l border-border pl-2 shrink-0">
         <ThemePicker />
       </div>
 
+      {/* Help — desktop only */}
       <button
         onClick={() => setKeyboardShortcutsOpen(true)}
-        className="w-6 h-6 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground text-xs flex items-center justify-center transition-colors"
+        className="w-6 h-6 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground text-xs hidden md:flex items-center justify-center transition-colors shrink-0"
         title="Keyboard shortcuts [?]"
       >
         ?

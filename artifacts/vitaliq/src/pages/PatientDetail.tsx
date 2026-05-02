@@ -180,11 +180,8 @@ export default function PatientDetail() {
 
       <div className="flex-1 overflow-y-auto">
 
-        {/* ── Row 1: 3-column balanced monitor strip ── */}
-        <div
-          className="grid gap-2 p-2 items-start"
-          style={{ gridTemplateColumns: "minmax(0,228px) minmax(0,1fr) minmax(0,252px)" }}
-        >
+        {/* ── Row 1: monitor strip — stacks on mobile, 3-col on lg ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,228px)_minmax(0,1fr)_minmax(0,252px)] gap-2 p-2 items-start">
           {/* Left — scores & drug safety */}
           <div className="flex flex-col gap-2 min-w-0">
             <NEWS2Gauge patientId={patientId} />
@@ -192,21 +189,21 @@ export default function PatientDetail() {
             <DrugChecker patientId={patientId} patient={patient} compact />
           </div>
 
-          {/* Center — vitals + compact labs */}
-          <div className="flex flex-col gap-2 min-w-0">
+          {/* Center — vitals + compact labs (full-width on mobile, spans both cols on md) */}
+          <div className="flex flex-col gap-2 min-w-0 md:col-span-1 lg:col-span-1">
             <VitalsMonitor patientId={patientId} />
             <LabResults patientId={patientId} compact />
           </div>
 
-          {/* Right — alerts + triage */}
-          <div className="flex flex-col gap-2 min-w-0">
+          {/* Right — alerts + triage (full-width on mobile, full-row on md, col on lg) */}
+          <div className="flex flex-col gap-2 min-w-0 md:col-span-2 lg:col-span-1">
             <AlertTimeline patientId={patientId} />
             <TriageAgent patientId={patientId} compact />
           </div>
         </div>
 
-        {/* ── Row 2: Meds + Sepsis side-by-side ── */}
-        <div className="grid grid-cols-2 gap-2 px-2 pb-2 items-start">
+        {/* ── Row 2: Meds + Sepsis — stacks on mobile, side-by-side on md ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 px-2 pb-2 items-start">
           <MedicationTracker patientId={patientId} />
           <SepsisTracker patientId={patientId} />
         </div>
